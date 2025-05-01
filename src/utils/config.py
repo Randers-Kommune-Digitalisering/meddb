@@ -15,6 +15,10 @@ KEYCLOAK_URL = os.environ["KEYCLOAK_URL"].strip()
 KEYCLOAK_REALM = "randers-kommune"
 KEYCLOAK_CLIENT_ID = "meddb"
 
+SFTP_HOST = "sftp.randers.dk"
+SFTP_USER = os.environ["SFTP_USER"].strip()
+SFTP_PASS = os.environ["SFTP_PASS"].strip()
+
 # Database
 DB_HOST = os.environ.get('DB_HOST')
 DB_USER = os.environ.get('DB_USER')

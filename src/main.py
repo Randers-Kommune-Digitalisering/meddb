@@ -10,7 +10,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from utils.database import DatabaseClient
 from utils.sftp import SFTPClient
-from utils.config import DB_HOST, DB_USER, DB_PASS, DB_NAME
+from utils.config import DB_HOST, DB_USER, DB_PASS, DB_NAME, SFTP_HOST, SFTP_USER, SFTP_PASS
 from utils.logging import set_logging_configuration
 
 # Set up logging configuration
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 SCHEMA = "meddb"
 sched = BackgroundScheduler()
 db_client = DatabaseClient(db_type="postgresql", database=DB_NAME, username=DB_USER, password=DB_PASS, host=DB_HOST)
-sftp_client = SFTPClient(host="sftp.randers.dk", username="SFTP-SDRoller", password="rRg8Uy699QNzukvLBeP%ok6K3^v^sYSC")
+sftp_client = SFTPClient(host=SFTP_HOST, username=SFTP_USER, password=SFTP_PASS)
 
 with db_client.get_connection() as conn:
     conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA}"))
@@ -65,8 +65,9 @@ def daily_job():
 
 
 if __name__ == "__main__":  # pragma: no cover
-    sched.add_job(daily_job, 'date', run_date=datetime.now())
-    sched.add_job(daily_job, 'cron', hour=8, minute=0, id='daily_job')
-    sched.start()
-    sys.argv = ["streamlit", "run", "streamlit_app.py", "--client.toolbarMode=minimal", "--server.port=8080"]
-    sys.exit(stcli.main())
+    # sched.add_job(daily_job, 'date', run_date=datetime.now())
+    # sched.add_job(daily_job, 'cron', hour=8, minute=0, id='daily_job')
+    # sched.start()
+    # sys.argv = ["streamlit", "run", "streamlit_app.py", "--client.toolbarMode=minimal", "--server.port=8080"]
+    # sys.exit(stcli.main())
+    daily_job()
