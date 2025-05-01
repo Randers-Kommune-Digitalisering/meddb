@@ -11,9 +11,9 @@ PORT = os.getenv('PORT', '8080')
 POD_NAME = os.getenv('POD_NAME', 'pod_name_not_set')
 
 # Keycloack Auth
-# KEYCLOAK_URL = os.environ["KEYCLOAK_URL"].strip()
-# KEYCLOAK_REALM = os.environ["KEYCLOAK_REALM"].strip()
-# KEYCLOAK_CLIENT_ID = os.environ["KEYCLOAK_CLIENT_ID"].strip()
+KEYCLOAK_URL = os.environ["KEYCLOAK_URL"].strip()
+KEYCLOAK_REALM = "randers-kommune"
+KEYCLOAK_CLIENT_ID = "meddb"
 
 # Database
 DB_HOST = os.environ.get('DB_HOST')

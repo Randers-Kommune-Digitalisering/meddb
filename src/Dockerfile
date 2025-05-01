@@ -18,6 +18,9 @@ RUN apt-get update && apt-get install --yes --no-install-recommends build-essent
 COPY . $HOME
 WORKDIR $HOME
 
+# Change ownership and permissions of /src
+RUN chown -R $USER_ID:$GROUP_ID /src && chmod -R 775 /src
+
 # Install python packages
 RUN pip install --upgrade pip setuptools wheel
 RUN pip install -r requirements.txt
