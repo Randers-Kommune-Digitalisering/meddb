@@ -1,5 +1,6 @@
 import sqlalchemy
 import logging
+import urllib.parse
 
 
 class DatabaseClient:
@@ -18,7 +19,7 @@ class DatabaseClient:
         if port:
             host = host + f':{port}'
 
-        self.engine = sqlalchemy.create_engine(f'{driver}://{username}:{password}@{host}/{database}')
+        self.engine = sqlalchemy.create_engine(f'{driver}://{username}:{urllib.parse.quote_plus(password)}@{host}/{database}')
 
     def get_connection(self):
         try:
