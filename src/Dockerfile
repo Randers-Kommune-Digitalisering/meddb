@@ -31,4 +31,4 @@ EXPOSE $PORT
 # Set user
 USER $USER_ID
 
-ENTRYPOINT ["streamlit", "run", "main.py", "--server.port", "8080"]
+ENTRYPOINT ["python", "main.py"]
