@@ -10,7 +10,7 @@ from utils.config import DB_HOST, DB_USER, DB_PASS, DB_NAME
 from utils.config import KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID
 
 SCHEMA = "meddb"
-db_client = DatabaseClient(db_type="postgresql", database=DB_NAME, username=DB_USER, password=DB_PASS, host=DB_HOST) # Uncomment when using database
+db_client = DatabaseClient(db_type="postgresql", database=DB_NAME, username=DB_USER, password=DB_PASS, host=DB_HOST)
 
 with db_client.get_connection() as conn:
     conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA}"))
@@ -224,9 +224,7 @@ if rows:
                     # Convert email values to hyperlinks
                     df['Email'] = df['Email'].apply(lambda x: f'<a href="mailto:{x}">{x}</a>')
 
-                    st.write(df.style.hide(axis="index")
-                                .set_properties(**{'text-align': 'left'})
-                                .to_html(escape=False), unsafe_allow_html=True)
+                    st.write(df.style.hide(axis="index").set_properties(**{'text-align': 'left'}).to_html(escape=False), unsafe_allow_html=True)
                 else:
                     st.write("Ingen personer fundet på det valgte udvalg.")
             else:
