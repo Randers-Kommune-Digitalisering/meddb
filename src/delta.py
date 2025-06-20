@@ -103,9 +103,9 @@ class DeltaClient(APIClient):
             ]
         }
 
-    def search(self, name=None, email=None, username=None):
+    def search(self, search_name=None, email=None, username=None):
         criteria = []
-        if name:
+        if search_name:
             criteria.append({
                 "type": "MATCH",
                 "operator": "LIKE",
@@ -115,7 +115,7 @@ class DeltaClient(APIClient):
                 },
                 "right": {
                     "source": "STATIC",
-                    "value": f"%{name}%"
+                    "value": f"%{search_name}%"
                 }
             })
 
