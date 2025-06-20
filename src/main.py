@@ -72,5 +72,5 @@ if __name__ == "__main__":  # pragma: no cover
     sched.add_job(daily_job, 'date', run_date=datetime.now())
     sched.add_job(daily_job, 'cron', hour=8, minute=0, id='daily_job')
     sched.start()
-    sys.argv = ["streamlit", "run", "streamlit_app.py", "--client.toolbarMode=minimal", "--server.port=8080"]
+    sys.argv = ["streamlit", "run", "Forside.py", "--client.toolbarMode=minimal", "--server.port=8080"]
     sys.exit(stcli.main())

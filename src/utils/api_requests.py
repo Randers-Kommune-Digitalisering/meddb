@@ -86,7 +86,7 @@ class APIClient:
                 data = response.json()
 
                 self.access_token = data['access_token']
-                self.token_expires = now + data['expires_in']
+                self.token_expiry = now + data['expires_in']
 
                 if 'refresh_token' in data:
                     self.refresh_token = data['refresh_token']
