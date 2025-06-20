@@ -10,7 +10,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from utils.database import DatabaseClient
 from utils.sftp import SFTPClient
-from utils.config import DB_HOST, DB_USER, DB_PASS, DB_NAME, SFTP_HOST, SFTP_USER, SFTP_PASS
+from utils.config import DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_SCHEMA, SFTP_HOST, SFTP_USER, SFTP_PASS
 from utils.logging import set_logging_configuration
 
 # Set up logging configuration
@@ -18,17 +18,17 @@ set_logging_configuration()
 
 logger = logging.getLogger(__name__)
 
-SCHEMA = "meddb"
 sched = BackgroundScheduler()
 db_client = DatabaseClient(db_type="postgresql", database=DB_NAME, username=DB_USER, password=DB_PASS, host=DB_HOST)
 sftp_client = SFTPClient(host=SFTP_HOST, username=SFTP_USER, password=SFTP_PASS)
 
 with db_client.get_connection() as conn:
-    conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA}"))
+    conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {DB_SCHEMA}"))
     conn.commit()
 
 
 def daily_job():
+    logger.info("Starting daily job to update admins from CSV file.")
     with sftp_client.get_connection() as sftp_conn:
         file_list = sftp_conn.listdir()
         csv_files = [file for file in file_list if file.endswith('.csv')]
@@ -52,7 +52,7 @@ def daily_job():
                         df['email'] = df['email'].str.lower()
                         df = df.drop_duplicates(subset=['email'], ignore_index=True)
                         with db_client.get_connection() as conn:
-                            df.to_sql('administratorer', conn, schema=SCHEMA, if_exists='replace', index=False)
+                            df.to_sql('administratorer', conn, schema=DB_SCHEMA, if_exists='replace', index=False)
                             conn.commit()
                             logger.info("Admins have been updated in database")
                     else:
