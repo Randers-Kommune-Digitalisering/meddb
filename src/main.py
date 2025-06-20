@@ -29,7 +29,11 @@ with db_client.get_connection() as conn:
 
 def daily_job():
     logger.info("Starting daily job to update admins from CSV file.")
-    with sftp_client.get_connection() as sftp_conn:
+    sftp_conn = sftp_client.get_connection()
+    if sftp_conn is None:
+        logger.error("Error: Failed to establish SFTP connection.")
+        return
+    with sftp_conn as sftp_conn:
         file_list = sftp_conn.listdir()
         csv_files = [file for file in file_list if file.endswith('.csv')]
 
