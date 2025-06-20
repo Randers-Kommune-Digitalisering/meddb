@@ -45,7 +45,7 @@ class APIClient:
                 if self.access_token:
                     if self.token_expiry:
                         if time.time() < self.token_expiry:
-                            return {'Authorization': f'Bearer {self.api_key}'}
+                            return {'Authorization': f'Bearer {self.access_token}'}
                         else:
                             if self.refresh_token:
                                 if self.refresh_token_expiry:
