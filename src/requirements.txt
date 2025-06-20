@@ -12,5 +12,6 @@ requests==2.31.0
 requests-pkcs12==1.24
 SQLAlchemy
 streamlit
+streamlit-flow-component
 streamlit-tree-select
 streamlit-keycloak-zpl
