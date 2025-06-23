@@ -355,7 +355,7 @@ if rows:
                                 if not username and not name and not email:
                                     st.error("Indtast mindst ét søgekriterie: brugernavn, navn eller e-mail.")
                                     st.stop()
-                                res = delta_client.search(username=username, name=name, email=email)
+                                res = delta_client.search(search_name=name, email=email, username=username)
                                 # Search AD_DB_SCHEMA.person for matching users
                                 with db_client.get_connection() as conn:
                                     search_clauses = []
@@ -512,7 +512,8 @@ if rows:
                             st.write(f"Nuværende overordnet udvalg: **{current_parent_label}**")
 
                             # Only show selectbox if not top level
-                            if current_parent_id is not None:
+                            # if current_parent_id is not None:
+                            if current_udvalg_id != 1:
                                 all_udvalg = [
                                     {"label": row["udvalg"], "value": row["id"]}
                                     for row in rows if row["id"] != current_udvalg_id
