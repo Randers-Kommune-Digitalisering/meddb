@@ -7,6 +7,8 @@ from sqlalchemy import text
 from main import DB_SCHEMA, db_client
 from delta import DeltaClient
 from utils.config import KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID, AD_DB_SCHEMA
+import smtplib
+from email.mime.text import MIMEText
 
 
 delta_client = DeltaClient()
@@ -337,6 +339,7 @@ if rows:
         selected_node = row_dict.get(int(item), {})
         if selected_node:
             st.header(selected_node.get('label', 'Unknown'))
+
             if is_admin and st.session_state.get("editing", False):
                 col_add, col_move = st.columns([1, 1])
 
@@ -637,6 +640,14 @@ if rows:
                 roles_and_persons = result.mappings().all()
 
             if roles_and_persons:
+                emails = [row["email"] for row in roles_and_persons if row["email"]]
+                if emails:
+                    mailto_link = f"mailto:{';'.join(emails)}"
+                    st.markdown(
+                        f'<a href="{mailto_link}" target="_blank"><button type="button">Send e-mail til alle i udvalg</button></a>',
+                        unsafe_allow_html=True
+                    )
+
                 priority_roles = ['Formand', 'Næstformand', 'Sekretær', 'Udvalgsadministrator']
 
                 def get_priority(role):
@@ -682,6 +693,59 @@ if rows:
             st.error("Selected node not found.")
     else:
         st.write("Intet udvalg valgt.")
+        st.subheader("Søg udvalg")
+        search_query = st.text_input("Søg efter udvalg...", key="udvalg_search")
+        if search_query:
+            filtered = [row for row in rows if search_query.lower() in row["udvalg"].lower()]
+            if filtered:
+                st.write("Fundne udvalg:")
+                for row in filtered:
+                    if st.button(row['udvalg'], key=f"search_select_{row['id']}"):
+                        st.session_state.checked_nodes = [row['id']]
+                        expanded_nodes = []
+                        current_node = row['id']
+                        while current_node is not None:
+                            expanded_nodes.append(current_node)
+                            parent_node = next((r['overordnetudvalg'] for r in rows if r['id'] == current_node), None)
+                            current_node = parent_node
+                        st.session_state.expanded_nodes = expanded_nodes
+                        st.rerun()
+            else:
+                st.info("Ingen udvalg matcher søgningen.")
+
+        st.subheader("Send e-mail")
+        with db_client.get_connection() as conn:
+            # Get all unique roles
+            role_query = f"""
+            SELECT DISTINCT r.titelkursus as rolle
+            FROM {DB_SCHEMA}.personrolle pr
+            JOIN {DB_SCHEMA}.rolle r ON pr.rolleid = r.id
+            """
+            roles = [row['rolle'] for row in conn.execute(text(role_query)).mappings().all() if row['rolle']]
+
+        if roles:
+            selected_role = st.selectbox("Vælg rolle", roles, key="role_select")
+            if st.button(f"Vis e-mails for alle der er {selected_role}"):
+                with db_client.get_connection() as conn:
+                    email_query = f"""
+                    SELECT p.email
+                    FROM {DB_SCHEMA}.personrolle pr
+                    JOIN {DB_SCHEMA}.rolle r ON pr.rolleid = r.id
+                    JOIN {DB_SCHEMA}.person p ON pr.personid = p.id
+                    WHERE r.titelkursus = :selected_role
+                    """
+                    emails = [row['email'] for row in conn.execute(text(email_query), {"selected_role": selected_role}).mappings().all() if row['email']]
+                if emails:
+                    if len(emails) < 70:
+                        mailto_link = f"mailto:{';'.join(emails)}"
+                        st.markdown(
+                            f'<a href="{mailto_link}" target="_blank"><button type="button">Send e-mail til alle {selected_role}</button></a>',
+                            unsafe_allow_html=True
+                        )
+                    st.write("; ".join(emails))
+                else:
+                    st.info("Ingen e-mails fundet for den valgte rolle.")
+
         if is_admin and edit_mode:
             with st.form("add_udvalg_form", clear_on_submit=True):
                 st.subheader("Opret nyt udvalg")
