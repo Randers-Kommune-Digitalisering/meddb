@@ -7,8 +7,6 @@ from sqlalchemy import text
 from main import DB_SCHEMA, db_client
 from delta import DeltaClient
 from utils.config import KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID, AD_DB_SCHEMA
-import smtplib
-from email.mime.text import MIMEText
 
 
 delta_client = DeltaClient()
@@ -239,6 +237,54 @@ if email == 'rune.aagaard.keena@randers.dk':
             except Exception as e:
                 st.error(f"Kunne ikke slette personer eller personrolle uden gyldige referencer: {e}")
 
+    if st.button("Check mails"):
+        with db_client.get_connection() as conn:
+            check_column_query = f"""
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = '{DB_SCHEMA}'
+              AND table_name = 'person'
+              AND column_name = 'isystem'
+            """
+            column_exists = conn.execute(text(check_column_query)).fetchone()
+            if not column_exists:
+                alter_query = f"""
+                ALTER TABLE {DB_SCHEMA}.person
+                ADD COLUMN isystem BOOLEAN DEFAULT FALSE
+                """
+                conn.execute(text(alter_query))
+                conn.commit()
+                st.info("'isystem' column added to person table.")
+
+            # Get all emails from person table
+            email_query = f"SELECT email FROM {DB_SCHEMA}.person WHERE email IS NOT NULL"
+            emails = [row['email'] for row in conn.execute(text(email_query)).mappings().all()]
+            # st.write("Alle e-mails i person-tabellen:")
+            # st.write("; ".join(emails))
+            for email in emails:
+                if not delta_client.check_email_exists(email):
+                    # Check if email exists in AD_DB_SCHEMA.person
+                    ad_query = f"""
+                    SELECT 1 FROM {AD_DB_SCHEMA}.person WHERE LOWER("Mail") = :email
+                    """
+                    ad_result = conn.execute(text(ad_query), {"email": email.lower()}).fetchone()
+                    if ad_result:
+                        update_query = f"""
+                        UPDATE {DB_SCHEMA}.person
+                        SET isystem = TRUE
+                        WHERE email = :email
+                        """
+                        conn.execute(text(update_query), {"email": email})
+                        conn.commit()
+                else:
+                    update_query = f"""
+                    UPDATE {DB_SCHEMA}.person
+                    SET isystem = TRUE
+                    WHERE email = :email
+                    """
+                    conn.execute(text(update_query), {"email": email})
+                    conn.commit()
+
 rows = st.session_state.udvalg_data
 
 if rows:
@@ -439,16 +485,15 @@ if rows:
                                                     person_result = conn.execute(
                                                         text(f"SELECT id, fagid FROM {DB_SCHEMA}.person WHERE email = :email"),
                                                         {"email": r['E-mail']}
-                                                    ).fetchone()
+                                                    ).mappings().fetchone()
                                                     if person_result:
                                                         person_id = person_result['id']
                                                         # Update fagforening if selected and different
                                                         selected_fagforening_id = fagforening_options[union]
-                                                        print(selected_fagforening_id)
                                                         if selected_fagforening_id is not None and person_result['fagid'] != selected_fagforening_id:
                                                             update_query = text(f"""
                                                                 UPDATE {DB_SCHEMA}.person
-                                                                SET fagid = :fagid
+                                                                SET fagid = :fagid, isystem = TRUE
                                                                 WHERE id = :person_id
                                                             """)
                                                             conn.execute(update_query, {
@@ -459,8 +504,8 @@ if rows:
                                                     else:
                                                         if fagforening_options[union] is not None:
                                                             insert_person = text(f"""
-                                                                INSERT INTO {DB_SCHEMA}.person (navn, email, brugernavn, fagid, omraade)
-                                                                VALUES (:navn, :email, :brugernavn, :fagid, :omraade)
+                                                                INSERT INTO {DB_SCHEMA}.person (navn, email, brugernavn, fagid, isystem)
+                                                                VALUES (:navn, :email, :brugernavn, :fagid, TRUE)
                                                                 RETURNING id
                                                             """)
                                                             person_id = conn.execute(
@@ -469,14 +514,13 @@ if rows:
                                                                     "navn": r['Navn'],
                                                                     "email": r['E-mail'],
                                                                     "brugernavn": r['Brugernavn'],
-                                                                    "fagid": fagforening_options[union],
-                                                                    "omraade": r['Afdeling']
+                                                                    "fagid": fagforening_options[union]
                                                                 }
                                                             ).scalar()
                                                         else:
                                                             insert_person = text(f"""
-                                                                INSERT INTO {DB_SCHEMA}.person (navn, email, brugernavn, omraade)
-                                                                VALUES (:navn, :email, :brugernavn, :omraade)
+                                                                INSERT INTO {DB_SCHEMA}.person (navn, email, brugernavn, isystem)
+                                                                VALUES (:navn, :email, :brugernavn, TRUE)
                                                                 RETURNING id
                                                             """)
                                                             person_id = conn.execute(
@@ -484,8 +528,7 @@ if rows:
                                                                 {
                                                                     "navn": r['Navn'],
                                                                     "email": r['E-mail'],
-                                                                    "brugernavn": r['Brugernavn'],
-                                                                    "omraade": r['Afdeling']
+                                                                    "brugernavn": r['Brugernavn']
                                                                 }
                                                             ).scalar()
                                                         st.info(f"Ny person {r['Navn']} er oprettet med ID {person_id}.")
@@ -630,7 +673,7 @@ if rows:
 
             with db_client.get_connection() as conn:
                 query = f"""
-                SELECT p.navn, r.titelkursus as rolle, p.email
+                SELECT p.navn, r.titelkursus as rolle, p.email, p.isystem
                 FROM {DB_SCHEMA}.personrolle pr
                 JOIN {DB_SCHEMA}.rolle r ON pr.rolleid = r.id
                 JOIN {DB_SCHEMA}.person p ON pr.personid = p.id
@@ -667,13 +710,17 @@ if rows:
 
                 for i, row in enumerate(sorted_rows):
                     cols = st.columns([2, 2, 2, 1]) if is_admin and st.session_state.get("editing", False) else st.columns([2, 2, 2])
-                    cols[0].write(row["navn"])
-                    cols[1].write(row["rolle"])
-                    email_link = f'<a href="mailto:{row["email"]}">{row["email"]}</a>'
+                    cols[0].markdown(f"<span>{row['navn']}</span>", unsafe_allow_html=True)
+                    cols[1].markdown(f"<span>{row['rolle']}</span>", unsafe_allow_html=True)
+                    if not row.get("isystem"):
+                        email_link = f'<span>{row["email"]} ❌</span>'
+                    else:
+                        email_link = f'<span>{row["email"]}</span>'
                     cols[2].markdown(email_link, unsafe_allow_html=True)
                     if is_admin and st.session_state.get("editing", False):
                         if cols[3].button("Fjern", key=f"slet_{row['navn']}_{row['rolle']}_{row['email']}"):
                             with db_client.get_connection() as conn:
+                                # Delete the personrolle entry
                                 delete_query = f"""
                                 DELETE FROM {DB_SCHEMA}.personrolle
                                 WHERE udvalgsid = :udvalgsid
@@ -682,6 +729,18 @@ if rows:
                                 conn.execute(
                                     text(delete_query),
                                     {"udvalgsid": selected_node['value'], "email": row['email']}
+                                )
+                                # Delete the person if they have no other personrolle
+                                cleanup_query = f"""
+                                DELETE FROM {DB_SCHEMA}.person
+                                WHERE email = :email
+                                  AND id NOT IN (
+                                    SELECT personid FROM {DB_SCHEMA}.personrolle
+                                  )
+                                """
+                                conn.execute(
+                                    text(cleanup_query),
+                                    {"email": row['email']}
                                 )
                                 conn.commit()
                             st.session_state.show_success = True
