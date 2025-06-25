@@ -198,3 +198,8 @@ class DeltaClient(APIClient):
             return results
         else:
             raise ValueError("At least one search parameter (name, email, username) must be provided.")
+
+    def check_email_exists(self, email):
+        results = self.search(email=email)
+        found = len(results) > 0
+        return found
