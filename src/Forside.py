@@ -262,6 +262,8 @@ if email == 'rune.aagaard.keena@randers.dk':
             # st.write("Alle e-mails i person-tabellen:")
             # st.write("; ".join(emails))
             for email in emails:
+                if "@" not in email or "." not in email:
+                    continue
                 if not delta_client.check_email_exists(email):
                     # Check if email exists in AD_DB_SCHEMA.person
                     ad_query = f"""
@@ -663,6 +665,15 @@ if rows:
                                     conn.execute(
                                         text(f"DELETE FROM {DB_SCHEMA}.udvalg WHERE id = :udvalg_id"),
                                         {"udvalg_id": selected_node['value']}
+                                    )
+                                    # Slet personer uden nogen personrolle
+                                    conn.execute(
+                                        text(f"""
+                                            DELETE FROM {DB_SCHEMA}.person
+                                            WHERE id NOT IN (
+                                                SELECT DISTINCT personid FROM {DB_SCHEMA}.personrolle
+                                            )
+                                        """)
                                     )
                                     conn.commit()
                                 st.session_state.pop("udvalg_data", None)
