@@ -271,6 +271,7 @@ if email == 'rune.aagaard.keena@randers.dk':
                         if new_email and new_email != email:
                             update_query = f"""
                             UPDATE {DB_SCHEMA}.person
+                            SET isystem = TRUE
                             SET email = :new_email
                             WHERE email = :old_email
                             """
@@ -299,6 +300,7 @@ if email == 'rune.aagaard.keena@randers.dk':
                                 update_query = f"""
                                 UPDATE {DB_SCHEMA}.person
                                 SET email = :new_email
+                                SET isystem = TRUE
                                 WHERE email = :old_email
                                 """
                                 conn.execute(text(update_query), {"new_email": new_email, "old_email": email})
