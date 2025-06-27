@@ -6,11 +6,13 @@ logger = logging.getLogger(__name__)
 
 
 class APIClient:
-    def __init__(self, base_url, api_key=None, auth_url=None, realm=None, client_id=None, client_secret=None, username=None, password=None, cert_base64=None, use_bearer=None, add_auth_to_path=True):
+    def __init__(self, base_url, api_key=None, auth_url=None, realm=None, tenant_id=None, scope=None, client_id=None, client_secret=None, username=None, password=None, cert_base64=None, use_bearer=None, add_auth_to_path=True):
         self.base_url = base_url
         self.api_key = api_key
         self.auth_url = auth_url
         self.realm = realm
+        self.tenant_id = tenant_id
+        self.scope = scope
         self.client_id = client_id
         self.client_secret = client_secret
         self.username = username
@@ -37,8 +39,8 @@ class APIClient:
                 else:
                     return {'Authorization': f'{self.api_key}'}
             elif self.client_id and self.client_secret:
-                if not self.realm:
-                    raise ValueError('Realm is required for client_id and client_secret authentication')
+                if not self.realm and not self.tenant_id:
+                    raise ValueError('realm or tenant_id is required for client_id and client_secret authentication')
 
                 refresh_token = False
 
@@ -54,10 +56,13 @@ class APIClient:
 
                 tmp_base_url = self.auth_url or self.base_url
 
-                if self.add_auth_to_path:
-                    tmp_url = f'{tmp_base_url}/auth/realms/{self.realm}/protocol/openid-connect/token'
-                else:
-                    tmp_url = f'{tmp_base_url}/realms/{self.realm}/protocol/openid-connect/token'
+                if self.realm:
+                    if self.add_auth_to_path:
+                        tmp_url = f'{tmp_base_url}/auth/realms/{self.realm}/protocol/openid-connect/token'
+                    else:
+                        tmp_url = f'{tmp_base_url}/realms/{self.realm}/protocol/openid-connect/token'
+                elif self.tenant_id:
+                    tmp_url = f'{tmp_base_url}/{self.tenant_id}/oauth2/v2.0/token'
 
                 tmp_headers = {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -67,6 +72,9 @@ class APIClient:
                     'client_id': self.client_id,
                     'client_secret': self.client_secret
                 }
+
+                if self.tenant_id and self.scope:
+                    tmp_json_data['scope'] = self.scope
 
                 if refresh_token:
                     tmp_json_data['grant_type'] = 'refresh_token'

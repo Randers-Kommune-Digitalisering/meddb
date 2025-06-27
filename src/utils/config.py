@@ -26,6 +26,14 @@ DELTA_CLIENT_SECRET = os.environ["DELTA_CLIENT_SECRET"].strip()
 DELTA_REALM = '730'
 DELTA_AUTH_URL = "https://idp.opus-universe.kmd.dk"
 
+# Microsoft Graph API
+MS_URL = 'https://graph.microsoft.com/v1.0/'
+MS_AUTH_URL = "https://login.microsoftonline.com"
+MS_SCOPE = "https://graph.microsoft.com/.default"
+MS_CLIENT_ID = os.environ["MS_CLIENT_ID"].strip()
+MS_CLIENT_SECRET = os.environ["MS_CLIENT_SECRET"].strip()
+MS_TENANT_ID = os.environ["MS_TENANT_ID"].strip()
+
 # Database
 DB_HOST = os.environ.get('DB_HOST')
 DB_USER = os.environ.get('DB_USER')

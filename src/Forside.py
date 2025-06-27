@@ -6,10 +6,12 @@ from streamlit_tree_select import tree_select
 from sqlalchemy import text
 from main import DB_SCHEMA, db_client
 from delta import DeltaClient
+from ms_graph import MSGraphClient
 from utils.config import KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID, AD_DB_SCHEMA
 
 
 delta_client = DeltaClient()
+ms_graph_client = MSGraphClient()
 
 
 st.set_page_config(page_title="MED-Database", page_icon="🗄️", layout="wide")
@@ -263,7 +265,18 @@ if email == 'rune.aagaard.keena@randers.dk':
             # st.write("; ".join(emails))
             for email in emails:
                 if "@" not in email or "." not in email:
-                    continue
+                    search_results = delta_client.search(email=email)
+                    if len(search_results) == 1:
+                        new_email = search_results[0].get("E-mail") or search_results[0].get("email")
+                        if new_email and new_email != email:
+                            update_query = f"""
+                            UPDATE {DB_SCHEMA}.person
+                            SET email = :new_email
+                            WHERE email = :old_email
+                            """
+                            conn.execute(text(update_query), {"new_email": new_email, "old_email": email})
+                            conn.commit()
+                            email = new_email
                 if not delta_client.check_email_exists(email):
                     # Check if email exists in AD_DB_SCHEMA.person
                     ad_query = f"""
@@ -278,6 +291,19 @@ if email == 'rune.aagaard.keena@randers.dk':
                         """
                         conn.execute(text(update_query), {"email": email})
                         conn.commit()
+                    else:
+                        ms_res = ms_graph_client.search_alias(email)
+                        if len(ms_res) == 1:
+                            new_email = ms_res[0].get("E-mail")
+                            if new_email and new_email != email:
+                                update_query = f"""
+                                UPDATE {DB_SCHEMA}.person
+                                SET email = :new_email
+                                WHERE email = :old_email
+                                """
+                                conn.execute(text(update_query), {"new_email": new_email, "old_email": email})
+                                conn.commit()
+                                email = new_email
                 else:
                     update_query = f"""
                     UPDATE {DB_SCHEMA}.person
