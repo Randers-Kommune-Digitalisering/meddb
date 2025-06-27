@@ -25,6 +25,6 @@ class MSGraphClient(APIClient):
                 "E-mail": email if email is not None else '-',
                 "Afdeling": afdeling if afdeling is not None else '-',
                 "Brugernavn": username if username is not None else '-'
-                })
+            })
 
         return results
