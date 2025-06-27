@@ -10,7 +10,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from utils.database import DatabaseClient
 from utils.sftp import SFTPClient
-from utils.config import DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_SCHEMA, SFTP_HOST, SFTP_USER, SFTP_PASS
+from delta import DeltaClient
+from ms_graph import MSGraphClient
+from utils.config import DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_SCHEMA, SFTP_HOST, SFTP_USER, SFTP_PASS, AD_DB_SCHEMA
 from utils.logging import set_logging_configuration
 
 # Set up logging configuration
@@ -21,6 +23,9 @@ logger = logging.getLogger(__name__)
 sched = BackgroundScheduler()
 db_client = DatabaseClient(db_type="postgresql", database=DB_NAME, username=DB_USER, password=DB_PASS, host=DB_HOST)
 sftp_client = SFTPClient(host=SFTP_HOST, username=SFTP_USER, password=SFTP_PASS)
+delta_client = DeltaClient()
+ms_graph_client = MSGraphClient()
+
 
 with db_client.get_connection() as conn:
     conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {DB_SCHEMA}"))
@@ -67,7 +72,6 @@ def daily_job():
                 logger.error(f"Error reading CSV file: {e}")
                 return
 
-from Forside import delta_client, ms_graph_client, AD_DB_SCHEMA
 
 def clean_emails():
     with db_client.get_connection() as conn:
@@ -150,7 +154,7 @@ def clean_emails():
                 found = True
                 conn.execute(text(update_query), {"email": email})
                 conn.commit()
-            
+
             logger.info(f"Email processed: {email}, found: {found}")
 
 
