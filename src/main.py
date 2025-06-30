@@ -157,7 +157,7 @@ def clean_emails():
 
 
 if __name__ == "__main__":  # pragma: no cover
-    sched.add_job(clean_emails, 'date', run_date=datetime.now())
+    # sched.add_job(clean_emails, 'date', run_date=datetime.now())
     sched.add_job(daily_job, 'date', run_date=datetime.now())
     sched.add_job(daily_job, 'cron', hour=8, minute=0, id='daily_job')
     sched.start()

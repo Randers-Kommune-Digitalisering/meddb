@@ -44,8 +44,10 @@ keycloak = login(
 )
 
 if keycloak.authenticated:
-    email = keycloak.user_info['email'].lower()
     try:
+        email = keycloak.user_info['email'].lower()
+        st.write(f"Velkommen, {keycloak.user_info['name']}! Din e-mail er: {email}")
+
         with db_client.get_connection() as conn:
             query = f"SELECT 1 FROM {DB_SCHEMA}.administratorer WHERE LOWER(email) = :email"
             result = conn.execute(text(query), {"email": email}).fetchone()
@@ -56,7 +58,7 @@ if keycloak.authenticated:
             st.write(f"{keycloak.user_info['name']} er logget ind som bruger")
     except Exception as e:
         is_admin = False
-        print(f"Fejl ved tjek af administratorstatus: {e}")
+        st.error(f"Error checking admin status: {e}")
 else:
     is_admin = False
     email = None
@@ -64,35 +66,21 @@ else:
 if email == 'rune.aagaard.keena@randers.dk':
     is_admin = True
 
-    # if st.button("Gør 'person.id' til auto-increment (SERIAL)", key="make_person_id_serial"):
-    #     with db_client.get_connection() as conn:
-    #         try:
-    #             # Check if 'id' is already serial/identity
-    #             check_query = f"""
-    #             SELECT column_default
-    #             FROM information_DB_SCHEMA.columns
-    #             WHERE table_name = 'person' AND column_name = 'id' AND table_DB_SCHEMA = '{DB_SCHEMA}'
-    #             """
-    #             result = conn.execute(text(check_query)).fetchone()
-    #             if result and result[0] and ("nextval" in str(result[0]) or "identity" in str(result[0]).lower()):
-    #                 st.info("'person.id' er allerede auto-increment.")
-    #             else:
-    #                 # Find current max id
-    #                 st.info('Setting up auto-increment for person.id')
-    #                 max_id_result = conn.execute(
-    #                     text(f"SELECT COALESCE(MAX(id), 0) FROM {DB_SCHEMA}.person")
-    #                 ).fetchone()
-    #                 max_id = max_id_result[0] if max_id_result else 0
-
-    #                 # Create or update sequence to start after max id
-    #                 seq_name = f"{DB_SCHEMA}.person_id_seq"
-    #                 conn.execute(text(f"CREATE SEQUENCE IF NOT EXISTS {seq_name} START WITH {max_id + 1} OWNED BY {DB_SCHEMA}.person.id"))
-    #                 conn.execute(text(f"SELECT setval('{seq_name}', GREATEST((SELECT COALESCE(MAX(id), 0) FROM {DB_SCHEMA}.person), 0) + 1, false)"))
-    #                 conn.execute(text(f"ALTER TABLE {DB_SCHEMA}.person ALTER COLUMN id SET DEFAULT nextval('{seq_name}')"))
-    #                 conn.commit()
-    #                 st.success("'person.id' er nu auto-increment og vil altid være én større end det højeste eksisterende id.")
-    #         except Exception as e:
-    #             st.error(f"Kunne ikke ændre 'person.id' til auto-increment: {e}")
+    if is_admin and email:
+        with st.sidebar:
+            if st.button("Gør denne bruger til administrator"):
+                with db_client.get_connection() as conn:
+                    try:
+                        insert_query = f"""
+                        INSERT INTO {DB_SCHEMA}.administratorer (email)
+                        VALUES (:email)
+                        ON CONFLICT DO NOTHING
+                        """
+                        conn.execute(text(insert_query), {"email": email})
+                        conn.commit()
+                        st.success(f"{email} er nu administrator.")
+                    except Exception as e:
+                        st.error(f"Kunne ikke tilføje administrator: {e}")
 
     uploaded_file = st.file_uploader("Upload file", type=["csv"], label_visibility="collapsed")
     if uploaded_file is not None:
@@ -238,82 +226,6 @@ if email == 'rune.aagaard.keena@randers.dk':
                 st.success("Alle personer uden tilknyttet rolle og alle ugyldige personrolle-rækker er slettet.")
             except Exception as e:
                 st.error(f"Kunne ikke slette personer eller personrolle uden gyldige referencer: {e}")
-
-    # if st.button("Check mails"):
-    #     with db_client.get_connection() as conn:
-    #         check_column_query = f"""
-    #         SELECT 1
-    #         FROM information_schema.columns
-    #         WHERE table_schema = '{DB_SCHEMA}'
-    #           AND table_name = 'person'
-    #           AND column_name = 'isystem'
-    #         """
-    #         column_exists = conn.execute(text(check_column_query)).fetchone()
-    #         if not column_exists:
-    #             alter_query = f"""
-    #             ALTER TABLE {DB_SCHEMA}.person
-    #             ADD COLUMN isystem BOOLEAN DEFAULT FALSE
-    #             """
-    #             conn.execute(text(alter_query))
-    #             conn.commit()
-    #             st.info("'isystem' column added to person table.")
-
-    #         # Get all emails from person table
-    #         email_query = f"SELECT email FROM {DB_SCHEMA}.person WHERE email IS NOT NULL"
-    #         emails = [row['email'] for row in conn.execute(text(email_query)).mappings().all()]
-    #         # st.write("Alle e-mails i person-tabellen:")
-    #         # st.write("; ".join(emails))
-    #         for email in emails:
-    #             if "@" not in email or "." not in email:
-    #                 search_results = delta_client.search(email=email)
-    #                 if len(search_results) == 1:
-    #                     new_email = search_results[0].get("E-mail") or search_results[0].get("email")
-    #                     if new_email and new_email != email:
-    #                         update_query = f"""
-    #                         UPDATE {DB_SCHEMA}.person
-    #                         SET isystem = TRUE
-    #                         SET email = :new_email
-    #                         WHERE email = :old_email
-    #                         """
-    #                         conn.execute(text(update_query), {"new_email": new_email, "old_email": email})
-    #                         conn.commit()
-    #                         email = new_email
-    #             if not delta_client.check_email_exists(email):
-    #                 # Check if email exists in AD_DB_SCHEMA.person
-    #                 ad_query = f"""
-    #                 SELECT 1 FROM {AD_DB_SCHEMA}.person WHERE LOWER("Mail") = :email
-    #                 """
-    #                 ad_result = conn.execute(text(ad_query), {"email": email.lower()}).fetchone()
-    #                 if ad_result:
-    #                     update_query = f"""
-    #                     UPDATE {DB_SCHEMA}.person
-    #                     SET isystem = TRUE
-    #                     WHERE email = :email
-    #                     """
-    #                     conn.execute(text(update_query), {"email": email})
-    #                     conn.commit()
-    #                 else:
-    #                     ms_res = ms_graph_client.search_alias(email)
-    #                     if len(ms_res) == 1:
-    #                         new_email = ms_res[0].get("E-mail")
-    #                         if new_email and new_email != email:
-    #                             update_query = f"""
-    #                             UPDATE {DB_SCHEMA}.person
-    #                             SET email = :new_email
-    #                             SET isystem = TRUE
-    #                             WHERE email = :old_email
-    #                             """
-    #                             conn.execute(text(update_query), {"new_email": new_email, "old_email": email})
-    #                             conn.commit()
-    #                             email = new_email
-    #             else:
-    #                 update_query = f"""
-    #                 UPDATE {DB_SCHEMA}.person
-    #                 SET isystem = TRUE
-    #                 WHERE email = :email
-    #                 """
-    #                 conn.execute(text(update_query), {"email": email})
-    #                 conn.commit()
 
 rows = st.session_state.udvalg_data
 
