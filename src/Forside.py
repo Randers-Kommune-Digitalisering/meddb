@@ -45,17 +45,20 @@ keycloak = login(
 
 if keycloak.authenticated:
     try:
-        email = keycloak.user_info['email'].lower()
-        st.write(f"Velkommen, {keycloak.user_info['name']}! Din e-mail er: {email}")
-
-        with db_client.get_connection() as conn:
-            query = f"SELECT 1 FROM {DB_SCHEMA}.administratorer WHERE LOWER(email) = :email"
-            result = conn.execute(text(query), {"email": email}).fetchone()
-            is_admin = result is not None
-        if is_admin:
-            st.write(f"{keycloak.user_info['name']} er logget ind som administrator")
+        email = keycloak.user_info.get('email', None)
+        if email:
+            email = email.lower()
+            with db_client.get_connection() as conn:
+                query = f"SELECT 1 FROM {DB_SCHEMA}.administratorer WHERE LOWER(email) = :email"
+                result = conn.execute(text(query), {"email": email}).fetchone()
+                is_admin = result is not None
+            if is_admin:
+                st.write(f"Logget ind med: {email} - Administrator")
+            else:
+                st.write(f"Logget ind med: {email} - Bruger")
         else:
-            st.write(f"{keycloak.user_info['name']} er logget ind som bruger")
+            is_admin = False
+            st.error("Ingen e-mail fundet i brugeroplysningerne.")
     except Exception as e:
         is_admin = False
         st.error(f"Error checking admin status: {e}")
@@ -66,21 +69,19 @@ else:
 if email == 'rune.aagaard.keena@randers.dk':
     is_admin = True
 
-    if is_admin and email:
-        with st.sidebar:
-            if st.button("Gør denne bruger til administrator"):
-                with db_client.get_connection() as conn:
-                    try:
-                        insert_query = f"""
-                        INSERT INTO {DB_SCHEMA}.administratorer (email)
-                        VALUES (:email)
-                        ON CONFLICT DO NOTHING
-                        """
-                        conn.execute(text(insert_query), {"email": email})
-                        conn.commit()
-                        st.success(f"{email} er nu administrator.")
-                    except Exception as e:
-                        st.error(f"Kunne ikke tilføje administrator: {e}")
+    if st.button("Gør denne bruger til administrator"):
+        with db_client.get_connection() as conn:
+            try:
+                insert_query = f"""
+                INSERT INTO {DB_SCHEMA}.administratorer (email)
+                VALUES (:email)
+                ON CONFLICT DO NOTHING
+                """
+                conn.execute(text(insert_query), {"email": email})
+                conn.commit()
+                st.success(f"{email} er nu administrator.")
+            except Exception as e:
+                st.error(f"Kunne ikke tilføje administrator: {e}")
 
     uploaded_file = st.file_uploader("Upload file", type=["csv"], label_visibility="collapsed")
     if uploaded_file is not None:
