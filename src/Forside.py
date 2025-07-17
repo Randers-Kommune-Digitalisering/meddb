@@ -8,6 +8,8 @@ from main import DB_SCHEMA, db_client
 from delta import DeltaClient
 from ms_graph import MSGraphClient
 from utils.config import KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID, AD_DB_SCHEMA
+import io
+import zipfile
 
 
 delta_client = DeltaClient()
@@ -233,6 +235,36 @@ if email == 'rune.aagaard.keena@randers.dk':
                 st.success("Alle personer uden tilknyttet rolle og alle ugyldige personrolle-rækker er slettet.")
             except Exception as e:
                 st.error(f"Kunne ikke slette personer eller personrolle uden gyldige referencer: {e}")
+
+    if st.button("Eksporter alle tabeller som CSV"):
+
+        with db_client.get_connection() as conn:
+            # Get all table names in the schema
+            tables_query = f"""
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = '{DB_SCHEMA}'
+                AND table_type = 'BASE TABLE'
+            """
+            table_names = [row['table_name'] for row in conn.execute(text(tables_query)).mappings().all()]
+
+            if not table_names:
+                st.warning("Ingen tabeller fundet i databasen.")
+            else:
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                    for table in table_names:
+                        df = pd.read_sql(f'SELECT * FROM "{DB_SCHEMA}"."{table}"', conn)
+                        csv_buffer = io.StringIO()
+                        df.to_csv(csv_buffer, index=False, sep=";")
+                        zip_file.writestr(f"{table}.csv", csv_buffer.getvalue())
+                zip_buffer.seek(0)
+                st.download_button(
+                    label="Download alle tabeller (ZIP)",
+                    data=zip_buffer,
+                    file_name="alle_tabeller.zip",
+                    mime="application/zip"
+                )
 
 rows = st.session_state.udvalg_data
 
