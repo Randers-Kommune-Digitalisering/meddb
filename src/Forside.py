@@ -52,6 +52,12 @@ if keycloak.authenticated:
                 query = f"SELECT 1 FROM {DB_SCHEMA}.administratorer WHERE LOWER(email) = :email"
                 result = conn.execute(text(query), {"email": email}).fetchone()
                 is_admin = result is not None
+
+            # TEMPORARY ADMIN CHECK - DELETE
+            if email == 'thomas.holm.krogh@randers.dk' or email == 'thomas.holm@randers.dk':
+                is_admin = True
+            # TEMPORARY ADMIN CHECK - DELETE
+
             if is_admin:
                 st.write(f"Logget ind med: {email} - Administrator")
             else:
