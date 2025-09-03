@@ -204,7 +204,7 @@ if 'data_url' in st.session_state:
 
         cols = st.columns([2, 1, 1])
         with cols[0]:
-            st.image(data_url, caption=f'Forhåndsvisning: {st.session_state.screenshot_config['name']}')
+            st.image(data_url, caption=f"Forhåndsvisning: {st.session_state.screenshot_config['name']}")
 
         with cols[1]:
             st.download_button(
