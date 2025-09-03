@@ -135,7 +135,7 @@ if 'important_udvalg' not in st.session_state:
     children_of_top = [u for u in st.session_state.udvalg_data if u["overordnetudvalg"] == st.session_state.top_udvalg['id']]
     parent_ids = {u["overordnetudvalg"] for u in st.session_state.udvalg_data if u["overordnetudvalg"] is not None}
     important_udvalg = sorted([c for c in children_of_top if c["id"] in parent_ids], key=custom_sort)
-    st.session_state.important_udvalg = important_udvalg        
+    st.session_state.important_udvalg = important_udvalg
 
 if 'current_udvalg_id' not in st.session_state:
     st.session_state.current_udvalg_id = None
@@ -148,12 +148,12 @@ if 'screenshot_config' not in st.session_state:
 
 
 tab_udvalg = [st.session_state.top_udvalg] + st.session_state.important_udvalg
-tab_index = sac.tabs([sac.TabsItem(label=u['udvalg'].replace('-', '').strip())for u in tab_udvalg], align='center',  size='xm', variant='outline', color='red', use_container_width=True, return_index=True)
+tab_index = sac.tabs([sac.TabsItem(label=u['udvalg'].replace('-', '').strip())for u in tab_udvalg], align='center', size='xm', variant='outline', color='red', use_container_width=True, return_index=True)
 
 if st.session_state.current_udvalg_id != tab_index:
     st.session_state.current_udvalg_id = tab_index
-    group_styles = {"colors": {"AMR": "#20347c", "AMG": "#70b42c", "LOM": "#a0c4bc", "LMU": "#f88414", "PM": "#991325", "SEKTOR": "#20347c", "Ingen gruppe": "#7c7a7b"}, 
-                    "styles": 
+    group_styles = {"colors": {"AMR": "#20347c", "AMG": "#70b42c", "LOM": "#a0c4bc", "LMU": "#f88414", "PM": "#991325", "SEKTOR": "#20347c", "Ingen gruppe": "#7c7a7b"},
+                    "styles":
                         {"AMR": {'color': 'black', 'backgroundColor': 'white', 'border': '2px solid <color>', 'fontFamily': 'Arial', 'padding': 2, 'width': '110px'},
                          "AMG": {'color': 'black', 'backgroundColor': 'white', 'border': '2px solid <color>', 'fontFamily': 'Arial', 'padding': 2, 'width': '110px'},
                          "LOM": {'color': 'black', 'backgroundColor': 'white', 'border': '2px solid <color>', 'fontFamily': 'Arial', 'padding': 2, 'width': '110px'},
@@ -218,6 +218,6 @@ if 'data_url' in st.session_state:
             st.download_button(
                 label="Download PDF",
                 data=pdf_stream,
-                file_name=f"{ tab_udvalg[tab_index]['udvalg']}.pdf",
+                file_name=f"{tab_udvalg[tab_index]['udvalg']}.pdf",
                 mime="application/pdf"
             )
