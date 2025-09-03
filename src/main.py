@@ -156,7 +156,19 @@ def clean_emails():
             logger.info(f"Email processed: {email}, found: {found}")
 
 
+def delete_udvalg_without_parent():
+    with db_client.get_connection() as conn:
+        delete_query = """
+        DELETE FROM meddb.udvalg
+        WHERE overordnetudvalg IS NULL
+            AND udvalg <> 'HOVEDUDVALG';
+        """
+        conn.execute(text(delete_query))
+        conn.commit()
+
+
 if __name__ == "__main__":  # pragma: no cover
+    sched.add_job(delete_udvalg_without_parent, 'date', run_date=datetime.now())
     sched.add_job(clean_emails, 'date', run_date=datetime.now())
     sched.add_job(daily_job, 'date', run_date=datetime.now())
     # sched.add_job(daily_job, 'cron', hour=8, minute=0, id='daily_job')

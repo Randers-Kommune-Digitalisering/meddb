@@ -20,15 +20,15 @@ st.set_page_config(page_title="MED-Database", page_icon="🗄️", layout="wide"
 st.markdown('<style>table {width:100%;}</style>', unsafe_allow_html=True)
 
 # Fetch rows from the database only once
-if "udvalg_data" not in st.session_state:
+if "udvalg_data_forside" not in st.session_state:
     with db_client.get_connection() as conn:
         try:
             query = 'SELECT id, overordnetudvalg, udvalg FROM meddb.udvalg'
             result = conn.execute(text(query))
-            st.session_state.udvalg_data = result.mappings().all()
+            st.session_state.udvalg_data_forside = result.mappings().all()
         except Exception as e:
             st.error(f"Error fetching data from the database: {e}")
-            st.session_state.udvalg_data = None
+            st.session_state.udvalg_data_forside = None
 
 if "checked_nodes" not in st.session_state:
     st.session_state.checked_nodes = []
@@ -266,7 +266,7 @@ if email == 'rune.aagaard.keena@randers.dk':
                     mime="application/zip"
                 )
 
-rows = st.session_state.udvalg_data
+rows = st.session_state.udvalg_data_forside
 
 if rows:
     nodes = []
@@ -581,7 +581,7 @@ if rows:
                                             {"new_parent_id": new_parent["value"], "udvalg_id": current_udvalg_id}
                                         )
                                         conn.commit()
-                                    st.session_state.pop("udvalg_data", None)
+                                    st.session_state.pop("udvalg_data_forside", None)
                                     st.session_state.show_success = True
                                     st.session_state.success_message = f"{selected_node.get('label', 'Udvalg')} er flyttet under {new_parent['label']}."
                                     st.rerun()
@@ -609,7 +609,7 @@ if rows:
                                             {"new_label": new_label.strip(), "udvalg_id": current_udvalg_id}
                                         )
                                         conn.commit()
-                                    st.session_state.pop("udvalg_data", None)
+                                    st.session_state.pop("udvalg_data_forside", None)
                                     st.session_state.show_success = True
                                     st.session_state.success_message = f"Udvalg er omdøbt til '{new_label.strip()}'."
                                     st.rerun()
@@ -655,7 +655,7 @@ if rows:
                                         """)
                                     )
                                     conn.commit()
-                                st.session_state.pop("udvalg_data", None)
+                                st.session_state.pop("udvalg_data_forside", None)
                                 st.session_state.show_success = True
                                 st.session_state.success_message = f"Udvalg '{selected_node.get('label', '')}' er slettet."
                                 st.session_state.checked_nodes = []
@@ -838,7 +838,7 @@ if rows:
                                     }
                                 )
                                 conn.commit()
-                            st.session_state.pop("udvalg_data", None)
+                            st.session_state.pop("udvalg_data_forside", None)
                             st.session_state.show_add_udvalg_form = False
                             st.session_state.show_success = True
                             st.session_state.success_message = f"Udvalg '{new_udvalg_name.strip()}' er oprettet."
