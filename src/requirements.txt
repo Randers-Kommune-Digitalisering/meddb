@@ -1,6 +1,5 @@
 APScheduler
 Flask==3.0.3
-mariadb
 pandas
 paramiko==3.4.0
 pymssql
@@ -13,6 +12,6 @@ requests==2.31.0
 requests-pkcs12==1.24
 SQLAlchemy
 streamlit
-streamlit-flow-component
 streamlit-tree-select
 streamlit-keycloak-zpl
+https://github.com/Randers-Kommune-Digitalisering/streamlit-flow/releases/download/build-run5/streamlit_flow_component-1.7.0-py3-none-any.whl

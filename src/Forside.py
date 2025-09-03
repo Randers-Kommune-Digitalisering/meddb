@@ -56,7 +56,7 @@ if keycloak.authenticated:
                 is_admin = result is not None
 
             # TEMPORARY ADMIN CHECK - DELETE
-            if email == 'thomas.holm.krogh@randers.dk' or email == 'thomas.holm@randers.dk':
+            if email == 'thomas.holm.krogh@randers.dk' or email == 'thomas.holm@randers.dk' or email == 'mathilde.bendix.pape.abrahamsen@randers.dk':
                 is_admin = True
             # TEMPORARY ADMIN CHECK - DELETE
 
