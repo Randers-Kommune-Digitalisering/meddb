@@ -23,7 +23,7 @@ st.markdown('<style>table {width:100%;}</style>', unsafe_allow_html=True)
 if "udvalg_data_forside" not in st.session_state:
     with db_client.get_connection() as conn:
         try:
-            query = 'SELECT id, overordnetudvalg, udvalg FROM meddb.udvalg'
+            query = 'SELECT id, overordnetudvalg, udvalg, type FROM meddb.udvalg'
             result = conn.execute(text(query))
             st.session_state.udvalg_data_forside = result.mappings().all()
         except Exception as e:
@@ -270,7 +270,7 @@ rows = st.session_state.udvalg_data_forside
 
 if rows:
     nodes = []
-    row_dict = {row['id']: {'label': row['udvalg'], 'value': row['id']} for row in rows}
+    row_dict = {row['id']: {'label': row['udvalg'], 'value': row['id'], 'className': row['type']} for row in rows}
 
     for row in rows:
         parent_id = row['overordnetudvalg']
@@ -366,12 +366,13 @@ if rows:
         selected_node = row_dict.get(int(item), {})
         if selected_node:
             st.header(selected_node.get('label', 'Unknown'))
+            st.write(selected_node.get('className', 'Unknown'))
 
             if is_admin and st.session_state.get("editing", False):
-                col_add, col_move = st.columns([1, 1])
+                col_left, col_right = st.columns([1, 1])
 
                 if is_admin and st.session_state.get("editing", False):
-                    with col_add:
+                    with col_left:
                         res = st.session_state.get("people_search", [])
                         st.subheader("Tilføj medlem")
                         with st.form("search_form", clear_on_submit=True):
@@ -528,8 +529,54 @@ if rows:
                                                 st.session_state.success_message = (f"{r['Navn']} er tilføjet som {rolle} til {selected_node['label']}.")
                                                 st.session_state.show_success = True
                                                 st.rerun()
+                        st.subheader("Slet udvalg")
+                        with st.container(border=True):
+                            st.warning(
+                                "Advarsel: Sletning af et udvalg vil også slette alle tilknyttede personroller. "
+                                "Denne handling kan ikke fortrydes."
+                            )
+                            confirm_delete = st.checkbox(f'Jeg bekræfter, at jeg vil slette udvalget "{selected_node.get("label", "")}" permanent.')
+                            if confirm_delete and not st.session_state.get("confirm_delete_checked", False):
+                                st.session_state["confirm_delete_checked"] = True
+                                st.rerun()
+                            elif not confirm_delete and st.session_state.get("confirm_delete_checked", False):
+                                st.session_state["confirm_delete_checked"] = False
+                                st.rerun()
+                            delete_submitted = st.button("Slet udvalg", disabled=not confirm_delete)
+                            if delete_submitted:
+                                with db_client.get_connection() as conn:
+                                    # Slet alle personroller tilknyttet dette udvalg
+                                    conn.execute(
+                                        text(f"DELETE FROM {DB_SCHEMA}.personrolle WHERE udvalgsid = :udvalg_id"),
+                                        {"udvalg_id": selected_node['value']}
+                                    )
+                                    # Sæt overordnetudvalg til NULL for eventuelle underudvalg
+                                    conn.execute(
+                                        text(f"UPDATE {DB_SCHEMA}.udvalg SET overordnetudvalg = NULL WHERE overordnetudvalg = :udvalg_id"),
+                                        {"udvalg_id": selected_node['value']}
+                                    )
+                                    # Slet selve udvalget
+                                    conn.execute(
+                                        text(f"DELETE FROM {DB_SCHEMA}.udvalg WHERE id = :udvalg_id"),
+                                        {"udvalg_id": selected_node['value']}
+                                    )
+                                    # Slet personer uden nogen personrolle
+                                    conn.execute(
+                                        text(f"""
+                                            DELETE FROM {DB_SCHEMA}.person
+                                            WHERE id NOT IN (
+                                                SELECT DISTINCT personid FROM {DB_SCHEMA}.personrolle
+                                            )
+                                        """)
+                                    )
+                                    conn.commit()
+                                st.session_state.pop("udvalg_data_forside", None)
+                                st.session_state.show_success = True
+                                st.session_state.success_message = f"Udvalg '{selected_node.get('label', '')}' er slettet."
+                                st.session_state.checked_nodes = []
+                                st.rerun()
 
-                    with col_move:
+                    with col_right:
                         st.subheader("Flyt udvalg")
                         with st.form("move_udvalg_form", clear_on_submit=True):
                             # Find current parent
@@ -613,53 +660,35 @@ if rows:
                                     st.session_state.show_success = True
                                     st.session_state.success_message = f"Udvalg er omdøbt til '{new_label.strip()}'."
                                     st.rerun()
-
-                        st.subheader("Slet udvalg")
-                        with st.container(border=True):
-                            st.warning(
-                                "Advarsel: Sletning af et udvalg vil også slette alle tilknyttede personroller. "
-                                "Denne handling kan ikke fortrydes."
-                            )
-                            confirm_delete = st.checkbox(f'Jeg bekræfter, at jeg vil slette udvalget "{selected_node.get("label", "")}" permanent.')
-                            if confirm_delete and not st.session_state.get("confirm_delete_checked", False):
-                                st.session_state["confirm_delete_checked"] = True
-                                st.rerun()
-                            elif not confirm_delete and st.session_state.get("confirm_delete_checked", False):
-                                st.session_state["confirm_delete_checked"] = False
-                                st.rerun()
-                            delete_submitted = st.button("Slet udvalg", disabled=not confirm_delete)
-                            if delete_submitted:
-                                with db_client.get_connection() as conn:
-                                    # Slet alle personroller tilknyttet dette udvalg
-                                    conn.execute(
-                                        text(f"DELETE FROM {DB_SCHEMA}.personrolle WHERE udvalgsid = :udvalg_id"),
-                                        {"udvalg_id": selected_node['value']}
-                                    )
-                                    # Sæt overordnetudvalg til NULL for eventuelle underudvalg
-                                    conn.execute(
-                                        text(f"UPDATE {DB_SCHEMA}.udvalg SET overordnetudvalg = NULL WHERE overordnetudvalg = :udvalg_id"),
-                                        {"udvalg_id": selected_node['value']}
-                                    )
-                                    # Slet selve udvalget
-                                    conn.execute(
-                                        text(f"DELETE FROM {DB_SCHEMA}.udvalg WHERE id = :udvalg_id"),
-                                        {"udvalg_id": selected_node['value']}
-                                    )
-                                    # Slet personer uden nogen personrolle
-                                    conn.execute(
-                                        text(f"""
-                                            DELETE FROM {DB_SCHEMA}.person
-                                            WHERE id NOT IN (
-                                                SELECT DISTINCT personid FROM {DB_SCHEMA}.personrolle
-                                            )
-                                        """)
-                                    )
-                                    conn.commit()
-                                st.session_state.pop("udvalg_data_forside", None)
-                                st.session_state.show_success = True
-                                st.session_state.success_message = f"Udvalg '{selected_node.get('label', '')}' er slettet."
-                                st.session_state.checked_nodes = []
-                                st.rerun()
+                        st.subheader("Skift type")
+                        with st.form("change_type_form", clear_on_submit=True):
+                            current_udvalg_id = selected_node['value']
+                            current_type = selected_node.get('className', '')
+                            type_options = ['Udvalg', 'Arbejdsmiljøgruppe']
+                            default_index = type_options.index(current_type)
+                            new_type = st.selectbox(label='Type', options=type_options, index=default_index)
+                            type_submitted = st.form_submit_button("Skift")
+                            if type_submitted:
+                                # if not new_label.strip():
+                                #     st.warning("Navnet må ikke være tomt.")
+                                if new_type == current_type:
+                                    st.info("Typen er uændret.")
+                                else:
+                                    with db_client.get_connection() as conn:
+                                        update_query = f"""
+                                        UPDATE {DB_SCHEMA}.udvalg
+                                        SET type = :new_type
+                                        WHERE id = :udvalg_id
+                                        """
+                                        conn.execute(
+                                            text(update_query),
+                                            {"new_type": new_type, "udvalg_id": current_udvalg_id}
+                                        )
+                                        conn.commit()
+                                    st.session_state.pop("udvalg_data_forside", None)
+                                    st.session_state.show_success = True
+                                    st.session_state.success_message = f"Type er ændret til '{new_type}'."
+                                    st.rerun()
 
             with db_client.get_connection() as conn:
                 query = f"""

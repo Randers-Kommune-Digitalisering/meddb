@@ -34,6 +34,9 @@ def build_hierarchy(data, top_level_id=1, max_depth=2, group_styles=None, direct
     nodes = []
     edges = []
 
+    level_counts = {}
+    max_level = 0
+
     input_direction = direction if direction in ['right'] else 'bottom'
     output_direction = 'left' if direction in ['right'] else 'top'
 
@@ -58,7 +61,8 @@ def build_hierarchy(data, top_level_id=1, max_depth=2, group_styles=None, direct
         if node_id == top_level_id:
             style = {k: (v.replace('<color>', color) if isinstance(v, str) else v) for k, v in style.items()}
             style.update({'fontSize': '12px'})
-            nodes.append(StreamlitFlowNode(pos=(0, 0), id=str(node_id), node_type='input', source_position=input_direction, data={'content': item['udvalg']}, style=style, draggable=True))
+            nodes.append(StreamlitFlowNode(pos=(0, 0), id=str(node_id), node_type='input', source_position=input_direction, data={'content': f"**{item['udvalg'].strip()}**"}, style=style, draggable=False))
+            level_counts[0] = level_counts.get(0, 0) + 1
         elif parent_id is None:
             pass
         else:
@@ -78,16 +82,21 @@ def build_hierarchy(data, top_level_id=1, max_depth=2, group_styles=None, direct
                         break
                 if is_descendant and depth <= max_depth:
                     style = {k: (v.replace('<color>', color) if isinstance(v, str) else v) for k, v in style.items()}
-                    style.update({'fontSize': '10px'})
-                    nodes.append(StreamlitFlowNode(pos=(0, 0), id=str(node_id), source_position=input_direction, target_position=output_direction, data={'content': item['udvalg']}, style=style, draggable=True))
+                    style.update({'fontSize': '12px'})
+                    nodes.append(StreamlitFlowNode(pos=(0, 0), id=str(node_id), source_position=input_direction, target_position=output_direction, data={'content': f"**{item['udvalg'].strip()}**"}, style=style, draggable=False))
                     edges.append(StreamlitFlowEdge(id=str(node_id), source=str(parent_id), target=str(node_id), edge_type=edge_type, style={'stroke': color, 'strokeWidth': 2, 'strokeDasharray': '15,5'}))
+                    level_counts[depth] = level_counts.get(depth, 0) + 1
+                    max_level = max(max_level, depth)
 
     source_ids = {edge.source for edge in edges}
     for node in nodes:
         if node.id not in source_ids and node.type != 'input':
             node.type = 'output'
 
-    return nodes, edges
+    max_nodes_on_same_level = max(level_counts.values()) if level_counts else 0
+    total_levels = max_level + 1 if level_counts else 1
+
+    return nodes, edges, max_nodes_on_same_level, total_levels
 
 
 if 'udvalg_data' not in st.session_state:
@@ -107,7 +116,7 @@ if 'udvalg_data' not in st.session_state:
         non_amg = []
 
         for item in udvalg_data:
-            if item['udvalg'] and item['udvalg'].startswith("AMG"):
+            if item['type'] == 'Arbejdsmiljøgruppe':
                 amg_by_parent[item['overordnetudvalg']].append(item)
             else:
                 non_amg.append(item)
@@ -152,40 +161,31 @@ tab_index = sac.tabs([sac.TabsItem(label=u['udvalg'].replace('-', '').strip())fo
 
 if st.session_state.current_udvalg_id != tab_index:
     st.session_state.current_udvalg_id = tab_index
-    group_styles = {"colors": {"AMR": "#20347c", "AMG": "#70b42c", "LOM": "#a0c4bc", "LMU": "#f88414", "PM": "#991325", "SEKTOR": "#20347c", "Ingen gruppe": "#7c7a7b"},
+    group_styles = {"colors": {"AMR": "#20347c", "AMG": "#70b42c", "LOM": "#991325", "LMU": "#f88414", "PM": "#f88414", "SEKTOR": "#20347c", "Ingen gruppe": "#7c7a7b"},
                     "styles":
-                        {"AMR": {'color': 'black', 'backgroundColor': 'white', 'border': '2px solid <color>', 'fontFamily': 'Arial', 'padding': 2, 'width': '110px'},
-                         "AMG": {'color': 'black', 'backgroundColor': 'white', 'border': '2px solid <color>', 'fontFamily': 'Arial', 'padding': 2, 'width': '110px'},
-                         "LOM": {'color': 'black', 'backgroundColor': 'white', 'border': '2px solid <color>', 'fontFamily': 'Arial', 'padding': 2, 'width': '110px'},
-                         "LMU": {'color': 'black', 'backgroundColor': 'white', 'border': '2px solid <color>', 'fontFamily': 'Arial', 'padding': 2, 'width': '110px'},
-                         "PM": {'color': 'black', 'backgroundColor': 'white', 'border': '2px solid <color>', 'fontFamily': 'Arial', 'padding': 2, 'width': '110px'},
-                         "SEKTOR": {"color": "white", "backgroundColor": "<color>", "border": "none", "fontFamily": "Arial", "padding": 2, "width": "110px"},
-                         "Ingen gruppe": {"color": "white", "backgroundColor": "<color>", "border": "none", "fontFamily": "Arial", "padding": 2, "width": "110px"}}}
+                        {"AMR": {'color': 'black', 'backgroundColor': 'white', 'border': '2px solid <color>', 'fontFamily': 'Arial', 'padding': 2, 'width': '140px'},
+                         "AMG": {'color': 'black', 'backgroundColor': 'white', 'border': '2px solid <color>', 'fontFamily': 'Arial', 'padding': 2, 'width': '140px'},
+                         "LOM": {'color': 'black', 'backgroundColor': 'white', 'border': '2px solid <color>', 'fontFamily': 'Arial', 'padding': 2, 'width': '140px'},
+                         "LMU": {'color': 'black', 'backgroundColor': 'white', 'border': '2px solid <color>', 'fontFamily': 'Arial', 'padding': 2, 'width': '140px'},
+                         "PM": {'color': 'black', 'backgroundColor': 'white', 'border': '2px solid <color>', 'fontFamily': 'Arial', 'padding': 2, 'width': '140px'},
+                         "SEKTOR": {"color": "white", "backgroundColor": "<color>", "border": "none", "fontFamily": "Arial", "padding": 2, "width": "140px"},
+                         "Ingen gruppe": {"color": "white", "backgroundColor": "<color>", "border": "none", "fontFamily": "Arial", "padding": 2, "width": "140px"}}}
 
-    depth = 5
+    depth = 10
     if tab_udvalg[tab_index]['udvalg'] == 'HOVEDUDVALG':
         depth = 1
 
-    if 'OMSORG' in tab_udvalg[tab_index]['udvalg'].upper():
-        st.write('fix?')
-        # width = 10524
-        st.session_state.screenshot_config['width'] = 10520
-        st.session_state.screenshot_config['height'] = 1240
-    elif any(term in tab_udvalg[tab_index]['udvalg'].upper() for term in ['BØRN', 'SKOLE', 'SOCIAL']):
-        st.session_state.screenshot_config['width'] = 5260
-        st.session_state.screenshot_config['height'] = 1240
-    else:
-        st.session_state.screenshot_config['width'] = 2630
-        st.session_state.screenshot_config['height'] = 620
+    st.session_state.screenshot_config['name'] = tab_udvalg[tab_index]['udvalg']
 
-    st.session_state.screenshot_config['name'] = tab_udvalg[tab_index]['udvalg']  # .replace(' ', '_')
+    filtered_nodes, filtered_edges, nodes_wide, nodes_tall = build_hierarchy(st.session_state.udvalg_data, top_level_id=tab_udvalg[st.session_state.current_udvalg_id]['id'], max_depth=depth, group_styles=group_styles, direction='down', edge_type='smoothstep')
 
-    filtered_nodes, filtered_edges = build_hierarchy(st.session_state.udvalg_data, top_level_id=tab_udvalg[st.session_state.current_udvalg_id]['id'], max_depth=depth, group_styles=group_styles, direction='down', edge_type='smoothstep')
+    st.session_state.screenshot_config['width'] = 200 * nodes_wide
+    st.session_state.screenshot_config['height'] = 120 * nodes_tall
+
     st.session_state.flow_state = StreamlitFlowState(filtered_nodes, filtered_edges)
 
 st.write('Tryk på kamera-ikonet øverst til højre for at eksportere grafen')
-
-curr_state = streamlit_flow('flow', st.session_state.flow_state, fit_view=True, height=500, min_zoom=0.1, show_minimap=False, show_controls=True, hide_watermark=True, layout=TreeLayout(direction='down'), pan_on_drag=True, allow_zoom=True, show_screenshot=True, screenshot_config=st.session_state.screenshot_config)
+curr_state = streamlit_flow('flow', st.session_state.flow_state, fit_view=True, height=400, min_zoom=0.1, show_minimap=False, show_controls=True, hide_watermark=True, layout=TreeLayout(direction='down'), pan_on_drag=True, allow_zoom=True, show_screenshot=True, screenshot_config=st.session_state.screenshot_config)
 
 if curr_state.screenshot:
     st.session_state.data_url = curr_state.screenshot
