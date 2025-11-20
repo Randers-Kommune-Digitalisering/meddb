@@ -1,5 +1,8 @@
-import pandas as pd
+# TODO: Refactror
+# TODO: Hnadle afdeling / omraade
+# TODO: Add models and use sqlalchemy ORM
 import streamlit as st
+import streamlit_antd_components as sac
 from streamlit_keycloak import login
 from streamlit_tree_select import tree_select
 
@@ -8,8 +11,7 @@ from main import DB_SCHEMA, db_client
 from delta import DeltaClient
 from ms_graph import MSGraphClient
 from utils.config import KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID, AD_DB_SCHEMA
-import io
-import zipfile
+from utils.data_import import add_extra_features
 
 
 delta_client = DeltaClient()
@@ -39,232 +41,34 @@ if "expanded_nodes" not in st.session_state:
 if "show_success" not in st.session_state:
     st.session_state.show_success = False
 
+edit_mode = st.session_state.get("editing", False)
+
 keycloak = login(
     url=KEYCLOAK_URL,
     realm=KEYCLOAK_REALM,
     client_id=KEYCLOAK_CLIENT_ID
 )
 
+roles = []
+
 if keycloak.authenticated:
-    try:
-        email = keycloak.user_info.get('email', None)
-        if email:
-            email = email.lower()
-            with db_client.get_connection() as conn:
-                query = f"SELECT 1 FROM {DB_SCHEMA}.administratorer WHERE LOWER(email) = :email"
-                result = conn.execute(text(query), {"email": email}).fetchone()
-                is_admin = result is not None
+    email = keycloak.user_info.get('email', None)
+    if email:
+        email = email.lower()
 
-            # TEMPORARY ADMIN CHECK - DELETE
-            if email == 'thomas.holm.krogh@randers.dk' or email == 'thomas.holm@randers.dk' or email == 'mathilde.bendix.pape.abrahamsen@randers.dk':
-                is_admin = True
-            # TEMPORARY ADMIN CHECK - DELETE
+        roles = keycloak.user_info.get('resource_access', {}).get(KEYCLOAK_CLIENT_ID, {}).get('roles', [])
 
-            if is_admin:
-                st.write(f"Logget ind med: {email} - Administrator")
-            else:
-                st.write(f"Logget ind med: {email} - Bruger")
-        else:
-            is_admin = False
-            st.error("Ingen e-mail fundet i brugeroplysningerne.")
-    except Exception as e:
-        is_admin = False
-        st.error(f"Error checking admin status: {e}")
-else:
-    is_admin = False
-    email = None
+        if 'edit_member' in roles and 'edit_udvalg' in roles:
+            st.write(f"Logget ind med: {email} - Du kan tilføje/fjerne medlemmer fra udvalg og redigere udvalg")
+        elif 'edit_member' in roles:
+            st.write(f"Logget ind med: {email} - Du kan tilføje/fjerne medlemmer fra udvalg")
+        elif 'edit_udvalg' in roles:
+            st.write(f"Logget ind med: {email} - Du kan redigere udvalg")
 
-if email == 'rune.aagaard.keena@randers.dk':
-    is_admin = True
-
-    if st.button("Gør denne bruger til administrator"):
-        with db_client.get_connection() as conn:
-            try:
-                insert_query = f"""
-                INSERT INTO {DB_SCHEMA}.administratorer (email)
-                VALUES (:email)
-                ON CONFLICT DO NOTHING
-                """
-                conn.execute(text(insert_query), {"email": email})
-                conn.commit()
-                st.success(f"{email} er nu administrator.")
-            except Exception as e:
-                st.error(f"Kunne ikke tilføje administrator: {e}")
-
-    uploaded_file = st.file_uploader("Upload file", type=["csv"], label_visibility="collapsed")
-    if uploaded_file is not None:
-        file_base_name = uploaded_file.name.split(".")
-        if len(file_base_name) == 2:
-            table_name = file_base_name[0]
-            table_name = table_name.lower()
-            with db_client.get_connection() as conn:
-
-                dataframe = pd.read_csv(uploaded_file, delimiter=";", encoding="utf-8", low_memory=False)
-
-                dataframe = dataframe.dropna(axis=1, how='all')
-
-                dataframe.columns = [col.lower() for col in dataframe.columns]
-
-                if 'adgangskode' in dataframe.columns and 'brugernavn' not in dataframe.columns:
-                    dataframe['brugernavn'] = ""
-
-                for col_to_drop in ['adgangskode', 'omraade', 'titel', 'fagnavn', 'privatemail']:
-                    if col_to_drop in dataframe.columns:
-                        dataframe = dataframe.drop(columns=[col_to_drop])
-
-                if 'titelkursus' in dataframe.columns:
-                    dataframe = dataframe[dataframe['titelkursus'].notna()]
-
-                if 'udvalg' in dataframe.columns:
-                    dataframe = dataframe[dataframe['udvalg'].notna()]
-
-                columns = []
-                for col_name, dtype in zip(dataframe.columns, dataframe.dtypes):
-                    if col_name == "id":
-                        columns.append(f"{col_name} INTEGER PRIMARY KEY")
-                    elif col_name.endswith("Id"):
-                        columns.append(f"{col_name} INTEGER")
-                    elif pd.api.types.is_integer_dtype(dtype):
-                        columns.append(f"{col_name} INTEGER")
-                    elif pd.api.types.is_float_dtype(dtype):
-                        columns.append(f"{col_name} FLOAT")
-                    elif pd.api.types.is_bool_dtype(dtype):
-                        columns.append(f"{col_name} BOOLEAN")
-                    elif pd.api.types.is_datetime64_any_dtype(dtype):
-                        columns.append(f"{col_name} TIMESTAMP")
-                    else:
-                        columns.append(f"{col_name} TEXT")
-
-                create_table_query = f"""
-                CREATE TABLE IF NOT EXISTS {DB_SCHEMA}.{table_name} (
-                    {', '.join(columns)}
-                )
-                """
-
-                conn.execute(text(create_table_query))
-                conn.commit()
-
-                for col_name in dataframe.columns:
-                    if col_name.endswith("Id") and col_name != "id":
-                        referenced_table = col_name[:-2].lower()
-                        if referenced_table == "fag":
-                            referenced_table = "fagforening"
-                        add_foreign_key_query = f"""
-                        ALTER TABLE {DB_SCHEMA}.{table_name}
-                        ADD CONSTRAINT fk_{table_name}_{col_name}
-                        FOREIGN KEY ({col_name})
-                        REFERENCES {DB_SCHEMA}.{referenced_table}(Id)
-                        ON DELETE CASCADE
-                        """
-                        conn.execute(text(add_foreign_key_query))
-                        conn.commit()
-
-                dataframe.to_sql(table_name, conn, if_exists="append", index=False, schema=DB_SCHEMA)
-
-                st.success(f"The table '{table_name}' has been created successfully.")
-                # If 'id' column exists, make it auto-increment (SERIAL/IDENTITY)
-                if "id" in dataframe.columns:
-                    try:
-                        # Check if 'id' is already serial/identity
-                        check_query = f"""
-                        SELECT column_default
-                        FROM information_schema.columns
-                        WHERE table_name = '{table_name}' AND column_name = 'id' AND table_schema = '{DB_SCHEMA}'
-                        """
-                        result = conn.execute(text(check_query)).fetchone()
-                        if not (result and result[0] and ("nextval" in str(result[0]) or "identity" in str(result[0]).lower())):
-                            # Find current max id
-                            max_id_result = conn.execute(
-                                text(f"SELECT COALESCE(MAX(id), 0) FROM {DB_SCHEMA}.{table_name}")
-                            ).fetchone()
-                            max_id = max_id_result[0] if max_id_result else 0
-
-                            seq_name = f"{DB_SCHEMA}.{table_name}_id_seq"
-                            conn.execute(text(f"CREATE SEQUENCE IF NOT EXISTS {seq_name} START WITH {max_id + 1} OWNED BY {DB_SCHEMA}.{table_name}.id"))
-                            conn.execute(text(f"SELECT setval('{seq_name}', GREATEST((SELECT COALESCE(MAX(id), 0) FROM {DB_SCHEMA}.{table_name}), 0) + 1, false)"))
-                            conn.execute(text(f"ALTER TABLE {DB_SCHEMA}.{table_name} ALTER COLUMN id SET DEFAULT nextval('{seq_name}')"))
-                            st.info(f"'id' column in '{table_name}' is now auto-increment.")
-                        else:
-                            st.info(f"'id' column in '{table_name}' is already auto-increment.")
-                    except Exception as e:
-                        st.error(f"Could not set 'id' column to auto-increment: {e}")
-                else:
-                    # Add a unique constraint on all columns containing 'id'
-                    id_columns = [col for col in dataframe.columns if 'id' in col.lower()]
-                    if id_columns:
-                        constraint_name = f"{table_name}_{'_'.join(id_columns)}_unique"
-                        unique_constraint_query = f"""
-                        ALTER TABLE {DB_SCHEMA}.{table_name}
-                        ADD CONSTRAINT {constraint_name}
-                        UNIQUE ({', '.join(id_columns)})
-                        """
-                        try:
-                            conn.execute(text(unique_constraint_query))
-                            st.info(f"Unique constraint added on columns: {', '.join(id_columns)}")
-                        except Exception as e:
-                            st.warning(f"Could not add unique constraint: {e}")
-                conn.commit()
-        else:
-            st.error("File name is not valid. Please use a file name with only one dot.")
-            result = conn.execute(text("SELECT table_name FROM information_DB_SCHEMA.tables WHERE table_DB_SCHEMA = 'public'"))
-            tables = [row['table_name'] for row in result]
-            st.write("Tables in the database:", tables)
-
-    if st.button("Clean"):
-        with db_client.get_connection() as conn:
-            try:
-                # Delete orphaned personrolle rows
-                delete_orphan_personrolle = f"""
-                DELETE FROM {DB_SCHEMA}.personrolle
-                WHERE personid NOT IN (SELECT id FROM {DB_SCHEMA}.person)
-                   OR rolleid NOT IN (SELECT id FROM {DB_SCHEMA}.rolle)
-                   OR udvalgsid NOT IN (SELECT id FROM {DB_SCHEMA}.udvalg)
-                """
-                conn.execute(text(delete_orphan_personrolle))
-                conn.commit()
-
-                # Delete persons without any roles
-                delete_query = f"""
-                DELETE FROM {DB_SCHEMA}.person
-                WHERE id NOT IN (
-                    SELECT DISTINCT personid FROM {DB_SCHEMA}.personrolle
-                )
-                """
-                conn.execute(text(delete_query))
-                conn.commit()
-                st.success("Alle personer uden tilknyttet rolle og alle ugyldige personrolle-rækker er slettet.")
-            except Exception as e:
-                st.error(f"Kunne ikke slette personer eller personrolle uden gyldige referencer: {e}")
-
-    if st.button("Eksporter alle tabeller som CSV"):
-
-        with db_client.get_connection() as conn:
-            # Get all table names in the schema
-            tables_query = f"""
-                SELECT table_name
-                FROM information_schema.tables
-                WHERE table_schema = '{DB_SCHEMA}'
-                AND table_type = 'BASE TABLE'
-            """
-            table_names = [row['table_name'] for row in conn.execute(text(tables_query)).mappings().all()]
-
-            if not table_names:
-                st.warning("Ingen tabeller fundet i databasen.")
-            else:
-                zip_buffer = io.BytesIO()
-                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                    for table in table_names:
-                        df = pd.read_sql(f'SELECT * FROM "{DB_SCHEMA}"."{table}"', conn)
-                        csv_buffer = io.StringIO()
-                        df.to_csv(csv_buffer, index=False, sep=";")
-                        zip_file.writestr(f"{table}.csv", csv_buffer.getvalue())
-                zip_buffer.seek(0)
-                st.download_button(
-                    label="Download alle tabeller (ZIP)",
-                    data=zip_buffer,
-                    file_name="alle_tabeller.zip",
-                    mime="application/zip"
-                )
+        if 'import_export_data' in roles:
+            add_extra_features(db_client=db_client)
+    else:
+        st.error("Ingen e-mail fundet i brugeroplysningerne.")
 
 rows = st.session_state.udvalg_data_forside
 
@@ -303,9 +107,8 @@ if rows:
             return data
     nodes = sort_nested_list_of_dicts(nodes)
 
-    if is_admin:
-        edit_mode = st.session_state.get("editing", False)
-        if is_admin and st.session_state.get("editing", False):
+    if roles:
+        if roles and st.session_state.get("editing", False):
             st.markdown("<span style='font-size:2em; color:red; font-weight:bold;'>Du er ved at redigere</span>", unsafe_allow_html=True)
         if st.button("Rediger" if not edit_mode else "Afslut redigering", key="toggle_editing"):
             st.session_state.editing = not edit_mode
@@ -368,11 +171,22 @@ if rows:
             st.header(selected_node.get('label', 'Unknown'))
             st.write(selected_node.get('className', 'Unknown'))
 
-            if is_admin and st.session_state.get("editing", False):
-                col_left, col_right = st.columns([1, 1])
+            if roles and st.session_state.get("editing", False):
+                # col_left, col_right = st.tabs(["Medlemmer", "Udvalg"])
+                tabs_items = []
+                if 'edit_member' in roles:
+                    tabs_items.append(sac.TabsItem(label='Medlemmer'))
+                if 'edit_udvalg' in roles:
+                    tabs_items.append(sac.TabsItem(label='Udvalg'))
 
-                if is_admin and st.session_state.get("editing", False):
-                    with col_left:
+                tabs = sac.tabs(
+                    items=tabs_items,
+                    align='center',
+                    use_container_width=True
+                )
+
+                if roles and st.session_state.get("editing", False):
+                    if 'edit_member' in roles and tabs == 'Medlemmer':
                         res = st.session_state.get("people_search", [])
                         st.subheader("Tilføj medlem")
                         with st.form("search_form", clear_on_submit=True):
@@ -529,54 +343,9 @@ if rows:
                                                 st.session_state.success_message = (f"{r['Navn']} er tilføjet som {rolle} til {selected_node['label']}.")
                                                 st.session_state.show_success = True
                                                 st.rerun()
-                        st.subheader("Slet udvalg")
-                        with st.container(border=True):
-                            st.warning(
-                                "Advarsel: Sletning af et udvalg vil også slette alle tilknyttede personroller. "
-                                "Denne handling kan ikke fortrydes."
-                            )
-                            confirm_delete = st.checkbox(f'Jeg bekræfter, at jeg vil slette udvalget "{selected_node.get("label", "")}" permanent.')
-                            if confirm_delete and not st.session_state.get("confirm_delete_checked", False):
-                                st.session_state["confirm_delete_checked"] = True
-                                st.rerun()
-                            elif not confirm_delete and st.session_state.get("confirm_delete_checked", False):
-                                st.session_state["confirm_delete_checked"] = False
-                                st.rerun()
-                            delete_submitted = st.button("Slet udvalg", disabled=not confirm_delete)
-                            if delete_submitted:
-                                with db_client.get_connection() as conn:
-                                    # Slet alle personroller tilknyttet dette udvalg
-                                    conn.execute(
-                                        text(f"DELETE FROM {DB_SCHEMA}.personrolle WHERE udvalgsid = :udvalg_id"),
-                                        {"udvalg_id": selected_node['value']}
-                                    )
-                                    # Sæt overordnetudvalg til NULL for eventuelle underudvalg
-                                    conn.execute(
-                                        text(f"UPDATE {DB_SCHEMA}.udvalg SET overordnetudvalg = NULL WHERE overordnetudvalg = :udvalg_id"),
-                                        {"udvalg_id": selected_node['value']}
-                                    )
-                                    # Slet selve udvalget
-                                    conn.execute(
-                                        text(f"DELETE FROM {DB_SCHEMA}.udvalg WHERE id = :udvalg_id"),
-                                        {"udvalg_id": selected_node['value']}
-                                    )
-                                    # Slet personer uden nogen personrolle
-                                    conn.execute(
-                                        text(f"""
-                                            DELETE FROM {DB_SCHEMA}.person
-                                            WHERE id NOT IN (
-                                                SELECT DISTINCT personid FROM {DB_SCHEMA}.personrolle
-                                            )
-                                        """)
-                                    )
-                                    conn.commit()
-                                st.session_state.pop("udvalg_data_forside", None)
-                                st.session_state.show_success = True
-                                st.session_state.success_message = f"Udvalg '{selected_node.get('label', '')}' er slettet."
-                                st.session_state.checked_nodes = []
-                                st.rerun()
 
-                    with col_right:
+                    # with col_right:
+                    if 'edit_udvalg' in roles and tabs == 'Udvalg':
                         st.subheader("Flyt udvalg")
                         with st.form("move_udvalg_form", clear_on_submit=True):
                             # Find current parent
@@ -689,6 +458,52 @@ if rows:
                                     st.session_state.show_success = True
                                     st.session_state.success_message = f"Type er ændret til '{new_type}'."
                                     st.rerun()
+                        st.subheader("Slet udvalg")
+                        with st.container(border=True):
+                            st.warning(
+                                "Advarsel: Sletning af et udvalg vil også slette alle tilknyttede personroller. "
+                                "Denne handling kan ikke fortrydes."
+                            )
+                            confirm_delete = st.checkbox(f'Jeg bekræfter, at jeg vil slette udvalget "{selected_node.get("label", "")}" permanent.')
+                            if confirm_delete and not st.session_state.get("confirm_delete_checked", False):
+                                st.session_state["confirm_delete_checked"] = True
+                                st.rerun()
+                            elif not confirm_delete and st.session_state.get("confirm_delete_checked", False):
+                                st.session_state["confirm_delete_checked"] = False
+                                st.rerun()
+                            delete_submitted = st.button("Slet udvalg", disabled=not confirm_delete)
+                            if delete_submitted:
+                                with db_client.get_connection() as conn:
+                                    # Slet alle personroller tilknyttet dette udvalg
+                                    conn.execute(
+                                        text(f"DELETE FROM {DB_SCHEMA}.personrolle WHERE udvalgsid = :udvalg_id"),
+                                        {"udvalg_id": selected_node['value']}
+                                    )
+                                    # Sæt overordnetudvalg til NULL for eventuelle underudvalg
+                                    conn.execute(
+                                        text(f"UPDATE {DB_SCHEMA}.udvalg SET overordnetudvalg = NULL WHERE overordnetudvalg = :udvalg_id"),
+                                        {"udvalg_id": selected_node['value']}
+                                    )
+                                    # Slet selve udvalget
+                                    conn.execute(
+                                        text(f"DELETE FROM {DB_SCHEMA}.udvalg WHERE id = :udvalg_id"),
+                                        {"udvalg_id": selected_node['value']}
+                                    )
+                                    # Slet personer uden nogen personrolle
+                                    conn.execute(
+                                        text(f"""
+                                            DELETE FROM {DB_SCHEMA}.person
+                                            WHERE id NOT IN (
+                                                SELECT DISTINCT personid FROM {DB_SCHEMA}.personrolle
+                                            )
+                                        """)
+                                    )
+                                    conn.commit()
+                                st.session_state.pop("udvalg_data_forside", None)
+                                st.session_state.show_success = True
+                                st.session_state.success_message = f"Udvalg '{selected_node.get('label', '')}' er slettet."
+                                st.session_state.checked_nodes = []
+                                st.rerun()
 
             with db_client.get_connection() as conn:
                 query = f"""
@@ -720,15 +535,15 @@ if rows:
                     key=lambda x: (get_priority(x['rolle']), x['rolle'], x['navn'])
                 )
 
-                cols = st.columns([2, 2, 2, 1]) if is_admin and st.session_state.get("editing", False) else st.columns([2, 2, 2])
+                cols = st.columns([2, 2, 2, 1]) if roles and st.session_state.get("editing", False) else st.columns([2, 2, 2])
                 cols[0].markdown("<span style='font-size:1.2em; font-weight:bold;'>Navn</span>", unsafe_allow_html=True)
                 cols[1].markdown("<span style='font-size:1.2em; font-weight:bold;'>Rolle</span>", unsafe_allow_html=True)
                 cols[2].markdown("<span style='font-size:1.2em; font-weight:bold;'>Email</span>", unsafe_allow_html=True)
-                if is_admin and st.session_state.get("editing", False):
+                if roles and st.session_state.get("editing", False):
                     cols[3].write(' ')
 
                 for i, row in enumerate(sorted_rows):
-                    cols = st.columns([2, 2, 2, 1]) if is_admin and st.session_state.get("editing", False) else st.columns([2, 2, 2])
+                    cols = st.columns([2, 2, 2, 1]) if roles and st.session_state.get("editing", False) else st.columns([2, 2, 2])
                     cols[0].markdown(f"<span>{row['navn']}</span>", unsafe_allow_html=True)
                     cols[1].markdown(f"<span>{row['rolle']}</span>", unsafe_allow_html=True)
                     if not row.get("isystem"):
@@ -736,7 +551,7 @@ if rows:
                     else:
                         email_link = f'<span>{row["email"]}</span>'
                     cols[2].markdown(email_link, unsafe_allow_html=True)
-                    if is_admin and st.session_state.get("editing", False):
+                    if 'edit_member' in roles and st.session_state.get("editing", False):
                         if cols[3].button("Fjern", key=f"slet_{row['navn']}_{row['rolle']}_{row['email']}"):
                             with db_client.get_connection() as conn:
                                 # Delete the personrolle entry
@@ -824,7 +639,7 @@ if rows:
                 else:
                     st.info("Ingen e-mails fundet for den valgte rolle.")
 
-        if is_admin and edit_mode:
+        if roles and edit_mode:
             with st.form("add_udvalg_form", clear_on_submit=True):
                 st.subheader("Opret nyt udvalg")
                 parent_options = [{"label": row["udvalg"], "value": row["id"]} for row in rows]

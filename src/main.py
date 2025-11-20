@@ -179,11 +179,11 @@ def fix_names():
 
 
 if __name__ == "__main__":  # pragma: no cover
-    sched.add_job(delete_udvalg_without_parent, 'date', run_date=datetime.now())
-    sched.add_job(fix_names, 'date', run_date=datetime.now())
-    sched.add_job(clean_emails, 'date', run_date=datetime.now())
-    sched.add_job(daily_job, 'date', run_date=datetime.now())
+    # sched.add_job(delete_udvalg_without_parent, 'date', run_date=datetime.now())
+    # sched.add_job(fix_names, 'date', run_date=datetime.now())
+    # sched.add_job(clean_emails, 'date', run_date=datetime.now())
+    # sched.add_job(daily_job, 'date', run_date=datetime.now())
     # sched.add_job(daily_job, 'cron', hour=8, minute=0, id='daily_job')
-    sched.start()
+    # sched.start()
     sys.argv = ["streamlit", "run", "Forside.py", "--client.toolbarMode=minimal", "--server.port=8080"]
     sys.exit(stcli.main())
