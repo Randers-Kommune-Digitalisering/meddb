@@ -41,11 +41,12 @@ DB_PASS = os.environ.get('DB_PASS')
 DB_NAME = os.environ.get('DB_NAME')
 DB_SCHEMA = "meddb"
 
-AD_DB_SCHEMA = "skolead"
-
 # Skole AD Database
-SKOLE_AD_DB_HOST = None
-SKOLE_AD_DB_USER = None
-SKOLE_AD_DB_PASS = None
-SKOLE_AD_DB_NAME = None
-SKOLE_AD_DB_SCHEMA = None
+SKOLE_AD_DB_HOST = DB_HOST
+SKOLE_AD_DB_USER = DB_USER
+SKOLE_AD_DB_PASS = DB_PASS
+SKOLE_AD_DB_NAME = DB_NAME
+SKOLE_AD_DB_SCHEMA = "skolead"
+
+XFLOW_URL = "https://randers.ditmerflex.dk/randers/Login/LoginFederated?returnUrl=/randers/Opret/8d089028bce28"
+PRIORITY_MEMBERS = ['Formand', 'Næstformand', 'Sekretær']

@@ -184,3 +184,7 @@ def add_extra_features(db_client):
                     file_name="alle_tabeller.zip",
                     mime="application/zip"
                 )
+
+
+def add_extra_features_new(db_client):
+    pass

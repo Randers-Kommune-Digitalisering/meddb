@@ -1,5 +1,6 @@
 APScheduler
 Flask==3.0.3
+openpyxl
 pandas
 paramiko==3.4.0
 pillow
