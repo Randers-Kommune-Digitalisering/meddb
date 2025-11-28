@@ -76,7 +76,7 @@ class MeddbData:
         with self.db_client.get_session() as session:
             return session.get(Union, union_id)
 
-    def get_persons_not_in_system(self) -> list[Person]:    
+    def get_persons_not_in_system(self) -> list[Person]:
         with self.db_client.get_session() as session:
             persons = (
                 session.query(Person)
@@ -284,7 +284,7 @@ class MeddbData:
             return union
 
     # DELETE operations
-    def delete_committee_type(self, id: int) -> None:    
+    def delete_committee_type(self, id: int) -> None:
         with self.db_client.get_session() as session:
             committee_type = session.get(CommitteeType, id)
             if not committee_type:

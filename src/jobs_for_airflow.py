@@ -1,18 +1,12 @@
-import sys
-import io
 import logging
-import pandas as pd
 
-from datetime import datetime
-from streamlit.web import cli as stcli
 from sqlalchemy import text
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from utils.database import DatabaseClient
-from utils.sftp import SFTPClient
 from delta import DeltaClient
 from ms_graph import MSGraphClient
-from utils.config import DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_SCHEMA, SFTP_HOST, SFTP_USER, SFTP_PASS, AD_DB_SCHEMA
+from utils.config import DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_SCHEMA, SKOLE_AD_DB_SCHEMA
 from utils.logging import set_logging_configuration
 
 # Set up logging configuration
@@ -22,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 sched = BackgroundScheduler()
 db_client = DatabaseClient(db_type="postgresql", database=DB_NAME, username=DB_USER, password=DB_PASS, host=DB_HOST)
-sftp_client = SFTPClient(host=SFTP_HOST, username=SFTP_USER, password=SFTP_PASS)
 delta_client = DeltaClient()
 ms_graph_client = MSGraphClient()
 
@@ -88,7 +81,7 @@ def clean():
             elif not delta_client.check_email_exists(email):
                 # Check if email exists in AD_DB_SCHEMA.person
                 ad_query = f"""
-                SELECT "Skole" FROM {AD_DB_SCHEMA}.person WHERE LOWER("Mail") = :email
+                SELECT "Skole" FROM {SKOLE_AD_DB_SCHEMA}.person WHERE LOWER("Mail") = :email
                 """
                 ad_result = conn.execute(text(ad_query), {"email": email.lower()}).fetchone()
                 if ad_result:
