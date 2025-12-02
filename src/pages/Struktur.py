@@ -2,16 +2,14 @@ import base64
 import streamlit as st
 import streamlit_antd_components as sac
 
-from collections import defaultdict
 from PIL import Image
 from io import BytesIO
-from sqlalchemy import text
 from streamlit_flow import streamlit_flow
 from streamlit_flow.elements import StreamlitFlowNode, StreamlitFlowEdge
 from streamlit_flow.layouts import TreeLayout
 from streamlit_flow.state import StreamlitFlowState
 
-from main import db_client
+from Forside import meddb
 
 st.set_page_config(page_title="MED-Database", page_icon="🗄️", layout="wide")
 
@@ -100,41 +98,49 @@ def build_hierarchy(data, top_level_id=1, max_depth=2, group_styles=None, direct
 
 
 if 'udvalg_data' not in st.session_state:
-    with db_client.get_connection() as conn:
-        query = 'SELECT id, overordnetudvalg, udvalg, type FROM meddb.udvalg'
-        result = conn.execute(text(query))
-        udvalg_data = [
-            {
-                **row,
-                'id': int(row['id']) if row['id'] is not None else None,
-                'overordnetudvalg': int(row['overordnetudvalg']) if row['overordnetudvalg'] is not None else None
-            }
-            for row in result.mappings().all()
-        ]
+    udvalg_data = meddb.get_committees()
+    udvalg_data = [{
+        "id": u.id,
+        "overordnetudvalg": u.parent_id,
+        "udvalg": u.name,
+        "type": u.type.name if u.type else "Ukendt"}
+        for u in udvalg_data]
+    st.session_state.udvalg_data = udvalg_data
+    # with db_client.get_connection() as conn:
+    #     query = 'SELECT id, overordnetudvalg, udvalg, type FROM meddb.udvalg'
+    #     result = conn.execute(text(query))
+    #     udvalg_data = [
+    #         {
+    #             **row,
+    #             'id': int(row['id']) if row['id'] is not None else None,
+    #             'overordnetudvalg': int(row['overordnetudvalg']) if row['overordnetudvalg'] is not None else None
+    #         }
+    #         for row in result.mappings().all()
+    #     ]
 
-        amg_by_parent = defaultdict(list)
-        non_amg = []
+    #     amg_by_parent = defaultdict(list)
+    #     non_amg = []
 
-        for item in udvalg_data:
-            if item['type'] == 'Arbejdsmiljøgruppe':
-                amg_by_parent[item['overordnetudvalg']].append(item)
-            else:
-                non_amg.append(item)
+    #     for item in udvalg_data:
+    #         if item['type'] == 'Arbejdsmiljøgruppe':
+    #             amg_by_parent[item['overordnetudvalg']].append(item)
+    #         else:
+    #             non_amg.append(item)
 
-        udvalg_data = []
-        for parent, amgs in amg_by_parent.items():
-            if len(amgs) == 1:
-                udvalg_data.append(amgs[0])
-            elif len(amgs) > 1:
-                combined = {
-                    **amgs[0],
-                    'udvalg': f"{len(amgs)} AMG",
-                    'id': amgs[0]['id']
-                }
-                udvalg_data.append(combined)
-        udvalg_data.extend(non_amg)
+    #     udvalg_data = []
+    #     for parent, amgs in amg_by_parent.items():
+    #         if len(amgs) == 1:
+    #             udvalg_data.append(amgs[0])
+    #         elif len(amgs) > 1:
+    #             combined = {
+    #                 **amgs[0],
+    #                 'udvalg': f"{len(amgs)} AMG",
+    #                 'id': amgs[0]['id']
+    #             }
+    #             udvalg_data.append(combined)
+    #     udvalg_data.extend(non_amg)
 
-        st.session_state.udvalg_data = udvalg_data
+    #     st.session_state.udvalg_data = udvalg_data
 
 if 'top_udvalg' not in st.session_state:
     top_udvalg = next((u for u in st.session_state.udvalg_data if not u['overordnetudvalg']), None)
@@ -157,7 +163,7 @@ if 'screenshot_config' not in st.session_state:
 
 
 tab_udvalg = [st.session_state.top_udvalg] + st.session_state.important_udvalg
-tab_index = sac.tabs([sac.TabsItem(label=u['udvalg'].replace('-', '').strip())for u in tab_udvalg], align='center', size='xm', variant='outline', color='red', use_container_width=True, return_index=True)
+tab_index = sac.tabs([sac.TabsItem(label=u['udvalg'].replace('-', '').replace('SEKTOR', '').strip())for u in tab_udvalg], align='center', size='sm', variant='outline', color='red', use_container_width=True, return_index=True)
 
 if st.session_state.current_udvalg_id != tab_index:
     st.session_state.current_udvalg_id = tab_index

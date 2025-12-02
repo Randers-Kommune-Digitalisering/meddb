@@ -31,4 +31,4 @@ EXPOSE $PORT
 # Set user
 USER $USER_ID
 
-ENTRYPOINT streamlit run main.py --client.toolbarMode=minimal --server.port=$PORT
+ENTRYPOINT streamlit run Forside.py --client.toolbarMode=minimal --server.port=$PORT
