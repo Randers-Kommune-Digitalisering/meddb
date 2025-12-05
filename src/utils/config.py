@@ -39,6 +39,7 @@ DB_HOST = os.environ.get('DB_HOST')
 DB_USER = os.environ.get('DB_USER')
 DB_PASS = os.environ.get('DB_PASS')
 DB_NAME = os.environ.get('DB_NAME')
+DB_PORT = os.environ.get('DB_PORT')
 DB_SCHEMA = "meddb"
 
 # Skole AD Database
@@ -46,6 +47,7 @@ SKOLE_AD_DB_HOST = DB_HOST
 SKOLE_AD_DB_USER = DB_USER
 SKOLE_AD_DB_PASS = DB_PASS
 SKOLE_AD_DB_NAME = DB_NAME
+SKOLE_AD_DB_PORT = DB_PORT
 SKOLE_AD_DB_SCHEMA = "skolead"
 
 XFLOW_URL = "https://randers.ditmerflex.dk/randers/Login/LoginFederated?returnUrl=/randers/Opret/8d089028bce28"

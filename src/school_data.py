@@ -2,7 +2,7 @@ import logging
 
 from sqlalchemy import text
 
-from utils.config import SKOLE_AD_DB_HOST, SKOLE_AD_DB_USER, SKOLE_AD_DB_PASS, SKOLE_AD_DB_NAME, SKOLE_AD_DB_SCHEMA
+from utils.config import SKOLE_AD_DB_HOST, SKOLE_AD_DB_USER, SKOLE_AD_DB_PASS, SKOLE_AD_DB_NAME, SKOLE_AD_DB_SCHEMA, SKOLE_AD_DB_PORT
 from utils.database import DatabaseClient
 
 
@@ -21,7 +21,8 @@ class SchoolData:
             database=SKOLE_AD_DB_NAME,
             username=SKOLE_AD_DB_USER,
             password=SKOLE_AD_DB_PASS,
-            host=SKOLE_AD_DB_HOST
+            host=SKOLE_AD_DB_HOST,
+            port=SKOLE_AD_DB_PORT
         )
 
     def search_person(self, username: str | None = None, name: str | None = None, email: str | None = None) -> dict:

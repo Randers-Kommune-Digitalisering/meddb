@@ -56,7 +56,9 @@ if keycloak.authenticated:
         elif 'edit_udvalg' in user_roles:
             st.write(f"Logget ind med: {email} - Du kan administrere udvalg")
         else:
-            st.markdown(f"Logget ind med: {email} - Du har ingen redigeringsrettigheder. Anmod [her]({XFLOW_URL})")
+            st.write(f"Logget ind med: {email} - Du har ingen redigeringsrettigheder.")
+
+        st.markdown(f"Anmod om redigeringsrettigheder [her]({XFLOW_URL})")
 
     else:
         st.error("Ingen e-mail fundet i brugeroplysningerne.")
