@@ -1,24 +1,40 @@
-import sqlalchemy
 import logging
+import urllib.parse
+from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, text
 
 
 class DatabaseClient:
-    def __init__(self, db_type, database, username, password, host, port=None):
-        if db_type.lower() == 'mssql':
-            driver = 'mssql+pymssql'
-        elif db_type.lower() == 'mariadb':
-            driver = 'mariadb+mariadbconnector'
-        elif db_type.lower() == 'postgresql':
-            driver = 'postgresql+psycopg2'
-        else:
-            raise ValueError(f"Invalid database type {type}")
-
+    def __init__(self, db_type: str, username: str, password: str, host: str, port: int | None = None, database: str | None = None):
+        self.db_type = db_type.lower()
+        self.database = database
+        self.username = username
+        self.password = password
+        self.host = host
+        self.port = port
         self.logger = logging.getLogger(__name__)
 
-        if port:
-            host = host + f':{port}'
+        if self.db_type == 'mssql':
+            driver = 'mssql+pymssql'
+        elif self.db_type == 'mariadb':
+            driver = 'mariadb+mariadbconnector'
+        elif self.db_type == 'postgresql':
+            driver = 'postgresql+psycopg2'
+        else:
+            raise ValueError(f"Invalid database type {self.db_type}")
 
-        self.engine = sqlalchemy.create_engine(f'{driver}://{username}:{password}@{host}/{database}')
+        connection_string = f'{driver}://{urllib.parse.quote_plus(username)}:{urllib.parse.quote_plus(password)}@{urllib.parse.quote_plus(host)}'
+
+        if port is not None:
+            connection_string += f':{urllib.parse.quote_plus(str(port))}'
+
+        if database:
+            connection_string += f'/{urllib.parse.quote_plus(database)}'
+
+        self.engine = create_engine(connection_string)
+
+    def get_engine(self):
+        return self.engine
 
     def get_connection(self):
         try:
@@ -28,9 +44,21 @@ class DatabaseClient:
         except Exception as e:
             self.logger.error(f"Error connecting to database: {e}")
 
-    def execute_sql(self, sql):
+    def get_session(self):
+        try:
+            if self.engine:
+                return Session(self.get_engine())
+            self.logger.error("DatabaseClient not initialized properly. Engine is None. Check error from init.")
+        except Exception as e:
+            self.logger.error(f"Error connecting to database: {e}")
+
+    def execute_sql(self, sql, params=None):
         try:
             with self.get_connection() as conn:
-                return conn.execute(sqlalchemy.text(sql))
+                res = conn.execute(text(sql), params)
+                if res.returns_rows:
+                    return res.fetchall()
+                else:
+                    conn.commit()
         except Exception as e:
             self.logger.error(f"Error executing SQL: {e}")

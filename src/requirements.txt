@@ -1,9 +1,8 @@
 Flask==3.0.3
-mariadb
+openpyxl
 pandas
 pymssql
 py-healthcheck
-pysftp
 psycopg2
 prometheus-client
 python-dotenv
@@ -11,4 +10,6 @@ requests==2.31.0
 requests-pkcs12==1.24
 SQLAlchemy
 streamlit
-streamlit-keycloak
+streamlit-tree-select
+streamlit-antd-components
+streamlit-keycloak-zpl
