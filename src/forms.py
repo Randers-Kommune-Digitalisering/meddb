@@ -18,7 +18,7 @@ def create_form(type_name: str, create_func: callable) -> None:
                 st.rerun()
 
 
-def create_commmittee_form(get_all_func: callable, get_all_types_func: callable, create_func: callable) -> None:
+def create_committee_form(get_all_func: callable, get_all_types_func: callable, create_func: callable) -> None:
     """Create a form for adding a new committee."""
     with st.form("add_udvalg_form", clear_on_submit=True):
         parent_options = [(item.id, item.name) for item in get_all_func()]

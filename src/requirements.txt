@@ -17,4 +17,3 @@ streamlit
 streamlit-tree-select
 streamlit-antd-components
 streamlit-keycloak-zpl
-https://github.com/Randers-Kommune-Digitalisering/streamlit-flow/releases/download/build-run5/streamlit_flow_component-1.7.0-py3-none-any.whl

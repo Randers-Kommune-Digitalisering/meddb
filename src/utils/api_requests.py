@@ -113,7 +113,7 @@ class APIClient:
 
     def make_request(self, **kwargs):
         if 'path' in kwargs:
-            if not isinstance(kwargs['path'], str) and not kwargs['path'] is None:
+            if not isinstance(kwargs['path'], str) and kwargs['path'] is not None:
                 raise ValueError('Path must be a string')
 
         if self.cert_data:
