@@ -9,15 +9,28 @@ from delta import DeltaClient
 from utils.config import KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID, XFLOW_URL, PRIORITY_MEMBERS
 from meddb_data import MeddbData
 from school_data import SchoolData
-from forms import create_form, edit_name_form, delete_form, change_committee_type_form, move_committee_form, create_commmittee_form, create_union_form, edit_union_form
+from forms import create_form, edit_name_form, delete_form, change_committee_type_form, move_committee_form, create_committee_form, create_union_form, edit_union_form
 
 delta_client = DeltaClient()
 meddb = MeddbData()
 schooldb = SchoolData()
 
 
-st.set_page_config(page_title="MED-Database", page_icon="🗄️", layout="wide")
+st.set_page_config(page_title="MED-Database", page_icon="🗄️", layout="wide", initial_sidebar_state="expanded")
 st.markdown('<style>table {width:100%;}</style>', unsafe_allow_html=True)
+st.markdown(
+    """
+    <style>
+    /* Make the resizable sidebar wider */
+    [data-testid="stSidebar"] {
+        width: 310px !important;          /* your desired width */
+        min-width: 310px !important;      /* ensures drag-resize starts at this width */
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 # State
 committee_tree, parent_map, node_map = meddb.get_committee_tree()
@@ -26,7 +39,7 @@ if "checked_nodes" not in st.session_state:
     st.session_state.checked_nodes = []
 
 if "expanded_nodes" not in st.session_state:
-    st.session_state.expanded_nodes = []
+    st.session_state.expanded_nodes = [1]
 
 if "show_success" not in st.session_state:
     st.session_state.show_success = False
@@ -181,7 +194,7 @@ elif st.session_state.checked_nodes:
                             st.session_state.people_search = []
                             st.rerun()
                     if res:
-                        role_options = [(r.id, r.name) for r in meddb.get_all_roles()]
+                        role_options = [(None, "Ingen")] + [(r.id, r.name) for r in meddb.get_all_roles()]
                         role_values = [opt[0] for opt in role_options]
 
                         union_options = [(None, "Ingen")] + [(u.id, u.name) for u in meddb.get_all_unions()]
@@ -192,7 +205,7 @@ elif st.session_state.checked_nodes:
                             with st.expander(r['Navn'], expanded=expand):
                                 with st.form(f"add_member_form_{r['Navn']}_{r['Afdeling']}", clear_on_submit=True):
                                     top_line = '| ' + ' | '.join(['Navn', 'Afdeling']) + ' |' + '\n| ' + ' | '.join(['---'] * 2) + ' |' + '\n| ' + ' | '.join([r['Navn'], r['Afdeling']]) + ' |'
-                                    buttom_line = '| ' + ' | '.join(['Brugernavn', 'E-mail']) + ' |' + '\n| ' + ' | '.join(['---'] * 2) + ' |' + '\n| ' + ' | '.join([r['Brugernavn'], r['E-mail']]) + ' |'
+                                    buttom_line = '| E-mail |' + '\n| --- |' + '\n| ' + r['E-mail'] + ' |'
                                     st.markdown(top_line)
                                     st.markdown(buttom_line)
                                     role = st.selectbox(
@@ -209,11 +222,14 @@ elif st.session_state.checked_nodes:
                                     )
                                     add_btn = st.form_submit_button("Tilføj")
                                     if add_btn:
-                                        person = meddb.add_or_update_person(name=r['Navn'], email=r['E-mail'], username=r['Brugernavn'], organization=r['Afdeling'], union_id=union)
-                                        committee_membership = meddb.create_committee_member(person_id=person.id, committee_id=selected_node['value'], role_id=role)
-                                        st.session_state.success_message = (f"{person.name} er tilføjet som {committee_membership.role.name} til {selected_node['label']}.")
-                                        st.session_state.show_success = True
-                                        st.rerun()
+                                        if role is None:
+                                            st.error("Vælg en rolle for medlemmet.")
+                                        else:
+                                            person = meddb.add_or_update_person(name=r['Navn'], email=r['E-mail'], username=r['Brugernavn'], organization=r['Afdeling'], union_id=union)
+                                            committee_membership = meddb.create_committee_member(person_id=person.id, committee_id=selected_node['value'], role_id=role)
+                                            st.session_state.success_message = (f"{person.name} er tilføjet som {committee_membership.role.name} til {selected_node['label']}.")
+                                            st.session_state.show_success = True
+                                            st.rerun()
 
                 # Admin section - edit current committee
                 if 'edit_udvalg' in user_roles and tabs == 'Udvalg':
@@ -428,7 +444,7 @@ else:
         )
         if tabs == 'Udvalg':
             with st.expander("Opret nyt udvalg"):
-                create_commmittee_form(
+                create_committee_form(
                     get_all_func=meddb.get_committees,
                     get_all_types_func=meddb.get_all_committee_types,
                     create_func=meddb.create_committee
