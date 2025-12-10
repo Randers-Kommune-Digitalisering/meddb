@@ -103,7 +103,7 @@ with st.sidebar:
 
         if len(new_checked_nodes) == 0:
             st.session_state.checked_nodes = []
-            st.session_state.expanded_nodes = []
+            st.session_state.expanded_nodes = [1]  # Reset to root (HOVEDUDVALG)
 
         if len(new_checked_nodes) == 2:
             new_checked_nodes = [
@@ -118,6 +118,7 @@ with st.sidebar:
                 expanded_nodes.append(current_node)
                 current_node = parent_map.get(current_node)
 
+            expanded_nodes = expanded_nodes or [1]  # Reset to root (HOVEDUDVALG)
             st.session_state.expanded_nodes = expanded_nodes
 
         if len(new_checked_nodes) == 1 and new_checked_nodes != st.session_state.checked_nodes:
@@ -363,6 +364,7 @@ else:
                         expanded_nodes.append(current_node)
                         current_node = parent_map.get(current_node)
 
+                    expanded_nodes = expanded_nodes or [1]  # Reset to root (HOVEDUDVALG)
                     st.session_state.expanded_nodes = expanded_nodes
                     st.rerun()
         else:
