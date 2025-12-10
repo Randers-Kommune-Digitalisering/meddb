@@ -6,7 +6,12 @@ logger = logging.getLogger(__name__)
 
 
 class DeltaClient(APIClient):
+    """
+    Client to interact with the Delta API
+    Phone and mobile attributes are currently not used, but can be enabled if needed.
+    """
     def __init__(self):
+        """Initialize the DeltaClient with necessary authentication parameters and base search structure."""
         super().__init__(base_url=DELTA_URL, auth_url=DELTA_AUTH_URL, realm=DELTA_REALM, client_id=DELTA_CLIENT_ID, client_secret=DELTA_CLIENT_SECRET, add_auth_to_path=False)
         self.base_search_dict = {
             "graphQueries": [
@@ -103,7 +108,11 @@ class DeltaClient(APIClient):
             ]
         }
 
-    def search(self, search_name=None, email=None, username=None):
+    def search(self, search_name: str = None, email: str = None, username: str = None) -> list[dict]:
+        """
+        Search for persons in the Delta system by name, email, or username.
+        Returns a list of dictionaries with keys: 'Brugernavn', 'Navn', 'E-mail', 'Afdeling'.
+        """
         criteria = []
         if search_name:
             criteria.append({
@@ -151,7 +160,6 @@ class DeltaClient(APIClient):
             query = self.base_search_dict.copy()
             query['graphQueries'][0]['graphQuery']['criteria']['criteria'] = criteria
             response = self.make_request(method='POST', path='api/object/graph-query', json=query)
-            # Parse and extract relevant fields from response
             results = []
             try:
                 instances = response.get("graphQueryResult", [])[0].get("instances", [])
@@ -199,7 +207,8 @@ class DeltaClient(APIClient):
         else:
             raise ValueError("At least one search parameter (name, email, username) must be provided.")
 
-    def check_email_exists(self, email):
+    def check_email_exists(self, email: str) -> bool:
+        """Check if an email exists in the Delta system."""
         results = self.search(email=email)
         found = len(results) > 0
         return found
