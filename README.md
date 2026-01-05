@@ -1,6 +1,25 @@
 # MED-database
 Webapp for MED-database. All users as well as public acccess can see the data. Certain roles can add/remove members from committees or create/delete/edit committees.
 
+
+```mermaid
+flowchart TB
+  subgraph SG1["External"]
+    direction TB
+    A1["MS graph"]
+    A2["Delta"]
+  end
+  subgraph SG2["KIT / Kubernestes"]
+    direction TB
+        B1["MED-database<br/>Webapp"]
+        B2[("meta")]
+      end
+  
+  B1 --> A1
+  B1 --> A2
+  B1 --> B2
+```
+
 ## Dependencies
 Is depended on Skole AD being updated from this [api](https://github.com/Randers-Kommune-Digitalisering/external-api)
 dag_meddb_person_check DAG in [Airflow](https://github.com/Randers-Kommune-Digitalisering/airflow) checks if all people in the database can be found in external systems.

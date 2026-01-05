@@ -1,7 +1,7 @@
 import logging
 
 from sqlalchemy import select, text
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, aliased
 
 from utils.config import DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_SCHEMA, DB_PORT
 from utils.database import DatabaseClient
@@ -102,6 +102,43 @@ class MeddbData:
                 .all()
             )
 
+    def get_persons_by_roles_and_top_committees(self, role_ids: list[int], top_committee_ids: list[int], in_system: bool | None = None) -> list[Person]:
+        with self.db_client.get_session() as session:
+            q = (
+                session.query(Person)
+                .options(
+                    joinedload(Person.committee_memberships).joinedload(CommitteeMembership.role),
+                    joinedload(Person.committee_memberships).joinedload(CommitteeMembership.committee),
+                )
+                .join(Person.committee_memberships)
+            )
+
+            if in_system is not None:
+                q = q.filter(Person.found_in_system == in_system)
+
+            if role_ids:
+                q = q.filter(CommitteeMembership.role_id.in_(role_ids))
+
+            if top_committee_ids:
+                descendants_cte = (
+                    select(Committee.id)
+                    .where(Committee.id.in_(top_committee_ids))
+                    .cte(name="descendants", recursive=True)
+                )
+
+                C = aliased(Committee)
+                descendants_cte = descendants_cte.union_all(
+                    select(C.id).where(C.parent_id == descendants_cte.c.id)
+                )
+
+                q = q.filter(
+                    CommitteeMembership.committee_id.in_(select(descendants_cte.c.id))
+                )
+
+            q = q.distinct()
+
+            return q.all()
+
     def get_committees(self) -> list[Committee]:
         with self.db_client.get_session() as session:
             return session.query(Committee).options(joinedload(Committee.type)).all()
@@ -109,6 +146,10 @@ class MeddbData:
     def get_committee_by_id(self, committee_id: int) -> Committee | None:
         with self.db_client.get_session() as session:
             return session.query(Committee).options(joinedload(Committee.type)).filter(Committee.id == committee_id).first()
+
+    def get_committees_by_parent_id(self, parent_id: int) -> list[Committee]:
+        with self.db_client.get_session() as session:
+            return session.query(Committee).options(joinedload(Committee.type)).filter(Committee.parent_id == parent_id).all()
 
     def get_committee_tree(self) -> tuple[list[dict], dict[int, int | None], dict[int, dict]]:
         """Get committees structured as a tree for hierarchical representation using streamlit_tree_select."""

@@ -54,7 +54,7 @@ class Person(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(Unicode(100), nullable=True)
     name: Mapped[str] = mapped_column(Unicode(255), nullable=False)
-    email: Mapped[str | None] = mapped_column(Unicode(255), unique=True, nullable=False)
+    email: Mapped[str | None] = mapped_column(Unicode(255), nullable=False)
     organization: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
     found_in_system: Mapped[bool] = mapped_column(default=False)
 
