@@ -177,18 +177,19 @@ class DeltaClient(APIClient):
                 for ref in inst.get("inTypeRefs", []):
                     if ref.get("userKey") == "APOS-Types-Engagement-TypeRelation-Person":
                         target = ref.get("targetObject", {})
-                        # Attributes: email, phone, mobile
-                        for attr in target.get("attributes", []):
-                            if attr.get("userKey") == "APOS-Types-Engagement-Attribute-Email":
-                                email = attr.get("value")
-                            # elif attr.get("userKey") == "APOS-Types-Engagement-Attribute-Phone":
-                            #     phone = attr.get("value")
-                            # elif attr.get("userKey") == "APOS-Types-Engagement-Attribute-Mobile":
-                            #     mobile = attr.get("value")
-                        # Afdeling name
-                        for tref in target.get("typeRefs", []):
-                            if tref.get("userKey") == "APOS-Types-Engagement-TypeRelation-AdmUnit":
-                                afdeling = tref.get("targetObject", {}).get("identity", {}).get("name")
+                        if target.get("state") == "STATE_ACTIVE":
+                            # Attributes: email, phone, mobile
+                            for attr in target.get("attributes", []):
+                                if attr.get("userKey") == "APOS-Types-Engagement-Attribute-Email":
+                                    email = attr.get("value")
+                                # elif attr.get("userKey") == "APOS-Types-Engagement-Attribute-Phone":
+                                #     phone = attr.get("value")
+                                # elif attr.get("userKey") == "APOS-Types-Engagement-Attribute-Mobile":
+                                #     mobile = attr.get("value")
+                            # Afdeling name
+                            for tref in target.get("typeRefs", []):
+                                if tref.get("userKey") == "APOS-Types-Engagement-TypeRelation-AdmUnit":
+                                    afdeling = tref.get("targetObject", {}).get("identity", {}).get("name")
                     elif ref.get("userKey") == "APOS-Types-User-TypeRelation-Person":
                         # Username is the userKey of the user relation
                         username = ref.get("targetObject", {}).get("identity", {}).get("userKey")
