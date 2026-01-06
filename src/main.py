@@ -395,7 +395,7 @@ else:
             key="sector_select"
         )
         selected_in_system = st.selectbox(
-            "Personens findes i systemet",
+            "Findes i systemet",
             options=in_system_values,
             format_func=lambda x: next(label for val, label in in_system_options if val == x),
             key="in_system_select"
