@@ -225,7 +225,6 @@ elif st.session_state.checked_nodes:
                                             st.error("Vælg en rolle for medlemmet.")
                                         else:
                                             person = meddb.add_or_update_person(name=r['Navn'], email=r['E-mail'], username=r['Brugernavn'], organization=r['Afdeling'], union_id=union)
-                                            person = meddb.add_or_update_person(name=r['Navn'], email=r['E-mail'], username=r['Brugernavn'], organization=r['Afdeling'], union_id=None)
                                             committee_membership = meddb.create_committee_member(person_id=person.id, committee_id=selected_node['value'], role_id=role)
                                             st.session_state.success_message = (f"{person.name} er tilføjet som {committee_membership.role.name} til {selected_node['label']}.")
                                             st.session_state.show_success = True
