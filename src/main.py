@@ -31,7 +31,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
 # State
 committee_tree, parent_map, node_map = meddb.get_committee_tree()
 
@@ -197,8 +196,8 @@ elif st.session_state.checked_nodes:
                         role_options = [(None, "Ingen")] + [(r.id, r.name) for r in meddb.get_all_roles()]
                         role_values = [opt[0] for opt in role_options]
 
-                        # union_options = [(None, "Ingen")] + [(u.id, u.name) for u in meddb.get_all_unions()]
-                        # union_values = [opt[0] for opt in union_options]
+                        union_options = [(None, "Ingen")] + [(u.id, u.name) for u in meddb.get_all_unions()]
+                        union_values = [opt[0] for opt in union_options]
 
                         expand = True if len(res) == 1 else False
                         for r in res:
@@ -214,19 +213,18 @@ elif st.session_state.checked_nodes:
                                         format_func=lambda x: next(label for val, label in role_options if val == x),
                                         key=f"role_{r['Navn']}_{r['Afdeling']}"
                                     )
-                                    # union = st.selectbox(
-                                    #     "Fagforening",
-                                    #     options=union_values,
-                                    #     format_func=lambda x: next(label for val, label in union_options if val == x),
-                                    #     key=f"union_{r['Navn']}_{r['Afdeling']}"
-                                    # )
+                                    union = st.selectbox(
+                                        "Fagforening",
+                                        options=union_values,
+                                        format_func=lambda x: next(label for val, label in union_options if val == x),
+                                        key=f"union_{r['Navn']}_{r['Afdeling']}"
+                                    )
                                     add_btn = st.form_submit_button("Tilføj")
                                     if add_btn:
                                         if role is None:
                                             st.error("Vælg en rolle for medlemmet.")
                                         else:
-                                            # person = meddb.add_or_update_person(name=r['Navn'], email=r['E-mail'], username=r['Brugernavn'], organization=r['Afdeling'], union_id=union)
-                                            person = meddb.add_or_update_person(name=r['Navn'], email=r['E-mail'], username=r['Brugernavn'], organization=r['Afdeling'], union_id=None)
+                                            person = meddb.add_or_update_person(name=r['Navn'], email=r['E-mail'], username=r['Brugernavn'], organization=r['Afdeling'], union_id=union)
                                             committee_membership = meddb.create_committee_member(person_id=person.id, committee_id=selected_node['value'], role_id=role)
                                             st.session_state.success_message = (f"{person.name} er tilføjet som {committee_membership.role.name} til {selected_node['label']}.")
                                             st.session_state.show_success = True
@@ -371,79 +369,104 @@ else:
             st.info("Ingen udvalg matcher søgningen.")
 
     # Data export section
-    st.subheader("Dataudtræk")
-    in_system_options = [(None, "Alle"), (True, "I systemet"), (False, "Ikke i systemet")]
-    in_system_values = [opt[0] for opt in in_system_options]
+    if 'edit_udvalg' in user_roles and 'edit_member' in user_roles and not edit_mode:
+        st.subheader("Dataudtræk")
 
-    role_options = [(role.id, role.name) for role in meddb.get_all_roles()]
-    role_values = [opt[0] for opt in role_options]
+        role_options = [(role.id, role.name) for role in meddb.get_all_roles()]
+        role_values = [opt[0] for opt in role_options]
 
-    sector_options = [(committee.id, committee.name) for committee in meddb.get_committees_by_parent_id(1)]  # Assuming parent_id=1 corresponds to "HOVEDUDVALG" and that all sectors are its children
-    sector_values = [opt[0] for opt in sector_options]
+        sector_options = [(committee.id, committee.name) for committee in meddb.get_committees_by_parent_id(1)]  # Assuming parent_id=1 corresponds to "HOVEDUDVALG" and that all sectors are its children
+        sector_values = [opt[0] for opt in sector_options]
 
-    if role_options:
-        selected_roles = st.multiselect(
-            "Vælg rolle(r)",
-            options=role_values,
-            format_func=lambda x: next(label for val, label in role_options if val == x),
-            key="role_select"
-        )
-        selected_sectors = st.multiselect(
-            "Vælg sektor(er)",
-            options=sector_values,
-            format_func=lambda x: next(label for val, label in sector_options if val == x),
-            key="sector_select"
-        )
-        selected_in_system = st.selectbox(
-            "Findes i systemet",
-            options=in_system_values,
-            format_func=lambda x: next(label for val, label in in_system_options if val == x),
-            key="in_system_select"
-        )
+        union_options = [(union.id, union.name) for union in meddb.get_all_unions()]
+        if union_options:
+            union_options.append((None, "Ingen"))
+        union_values = [opt[0] for opt in union_options]
 
-        if st.button("Generer udtræk", key="generate_export"):
-            with st.spinner("Henter data..."):
-                all_with_roles = meddb.get_persons_by_roles_and_top_committees(role_ids=selected_roles, top_committee_ids=selected_sectors, in_system=selected_in_system)
-                if all_with_roles:
-                    mapped_persons = []
-                    for p in all_with_roles:
-                        roles = list({m.role.name for m in p.committee_memberships if m.role})
-                        top_sectors = set()
-                        for m in p.committee_memberships:
-                            # Skip if no committee or committee is the root (id=1)
-                            committee = meddb.get_committee_by_id(m.committee_id)
-                            if committee and committee.id != 1:
-                                current = committee
-                                parent_id = current.parent_id
-                                while parent_id and parent_id != 1:
-                                    current = meddb.get_committee_by_id(parent_id)
+        in_system_options = [(None, "Alle"), (True, "I systemet"), (False, "Ikke i systemet")]
+        in_system_values = [opt[0] for opt in in_system_options]
+
+        if role_options and sector_options and union_options:
+            selected_roles = st.multiselect(
+                "Vælg rolle(r)",
+                options=role_values,
+                format_func=lambda x: next(label for val, label in role_options if val == x),
+                key="role_select"
+            )
+            selected_sectors = st.multiselect(
+                "Vælg sektor(er)",
+                options=sector_values,
+                format_func=lambda x: next(label for val, label in sector_options if val == x),
+                key="sector_select"
+            )
+
+            include_unions = st.toggle("Inkluder fagforening", value=False, key="include_unions_toggle")
+
+            if include_unions:
+                selected_unions = st.multiselect(
+                    "Vælg fagforening(er)",
+                    options=union_values,
+                    format_func=lambda x: next(label for val, label in union_options if val == x),
+                    key="union_select"
+                )
+
+            selected_in_system = st.selectbox(
+                "Findes i systemet",
+                options=in_system_values,
+                format_func=lambda x: next(label for val, label in in_system_options if val == x),
+                key="in_system_select"
+            )
+
+            if st.button("Generer udtræk", key="generate_export"):
+                with st.spinner("Henter data..."):
+                    all_with_roles = meddb.get_persons_by_roles_and_top_committees(role_ids=selected_roles, top_committee_ids=selected_sectors, union_ids=selected_unions if include_unions else None, in_system=selected_in_system)
+                    if all_with_roles:
+                        mapped_persons = []
+                        for p in all_with_roles:
+                            roles = list({m.role.name for m in p.committee_memberships if m.role})
+                            top_sectors = set()
+                            for m in p.committee_memberships:
+                                # Skip if no committee or committee is the root (id=1)
+                                committee = meddb.get_committee_by_id(m.committee_id)
+                                if committee and committee.id != 1:
+                                    current = committee
                                     parent_id = current.parent_id
-                                if current.id != 1 and current.name not in top_sectors:
-                                    sector_name = current.name
-                                    if sector_name.startswith("SEKTOR - "):
-                                        sector_name = sector_name.replace("SEKTOR - ", "")
-                                    top_sectors.add(sector_name)
-                        mapped_persons.append({
-                            "Navn": p.name,
-                            "Email": p.email,
-                            "Org. Enhed": p.organization,
-                            "Rolle(r)": ", ".join(roles) if roles else None,
-                            "Sektor(er)": ", ".join(list(set(top_sectors))) if top_sectors else None,
-                            "I systemet": "Ja" if p.found_in_system else "Nej"
-                        })
-                    df = pd.DataFrame(mapped_persons)
-                    excel_buffer = BytesIO()
-                    df.to_excel(excel_buffer, index=False)
-                    excel_buffer.seek(0)
-                    selected_roles_str = "_".join([label for val, label in role_options if val in selected_roles])
-                    st.download_button(
-                        label="Download som Excel",
-                        data=excel_buffer,
-                        file_name="meddb_data.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-                else:
-                    st.info("Ingen fundet")
+                                    while parent_id and parent_id != 1:
+                                        current = meddb.get_committee_by_id(parent_id)
+                                        parent_id = current.parent_id
+                                    if current.id != 1 and current.name not in top_sectors:
+                                        sector_name = current.name
+                                        if sector_name.startswith("SEKTOR - "):
+                                            sector_name = sector_name.replace("SEKTOR - ", "")
+                                        top_sectors.add(sector_name)
+                            row = {
+                                "Navn": p.name,
+                                "Email": p.email,
+                                "Org. Enhed": p.organization,
+                                "Rolle(r)": ", ".join(roles) if roles else None,
+                                "Sektor(er)": ", ".join(list(set(top_sectors))) if top_sectors else None,
+                                "I systemet": "Ja" if p.found_in_system else "Nej"
+                            }
+                            if include_unions:
+                                row["Fagforening"] = p.union.name if p.union else None
+                            mapped_persons.append(row)
+                        df = pd.DataFrame(mapped_persons)
+                        excel_buffer = BytesIO()
+                        df.to_excel(excel_buffer, index=False)
+                        excel_buffer.seek(0)
+                        st.session_state['excel_buffer'] = excel_buffer
+                    else:
+                        st.session_state.pop('excel_buffer', None)
+                        st.info("Ingen fundet")
+
+        if 'excel_buffer' in st.session_state:
+            st.download_button(
+                label="Download Excel-fil",
+                data=st.session_state['excel_buffer'],
+                file_name="meddb_data.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                type="primary"
+            )
 
     # Admin section (Committees, Roles, Unions)
     if 'edit_udvalg' in user_roles and edit_mode:
