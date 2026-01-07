@@ -379,7 +379,8 @@ else:
         sector_values = [opt[0] for opt in sector_options]
 
         union_options = [(union.id, union.name) for union in meddb.get_all_unions()]
-        union_options.append((None, "Ingen"))
+        if union_options:
+            union_options.append((None, "Ingen"))
         union_values = [opt[0] for opt in union_options]
 
         in_system_options = [(None, "Alle"), (True, "I systemet"), (False, "Ikke i systemet")]
@@ -453,14 +454,7 @@ else:
                         excel_buffer = BytesIO()
                         df.to_excel(excel_buffer, index=False)
                         excel_buffer.seek(0)
-                        st.session_state['excel_buffer'] = excel_buffer  # Save buffer in session state
-                        # selected_roles_str = "_".join([label for val, label in role_options if val in selected_roles])
-                        # st.download_button(
-                        #     label="Download Excel-fil",
-                        #     data=excel_buffer,
-                        #     file_name="meddb_data.xlsx",
-                        #     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        # )
+                        st.session_state['excel_buffer'] = excel_buffer
                     else:
                         st.session_state.pop('excel_buffer', None)
                         st.info("Ingen fundet")
