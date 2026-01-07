@@ -102,11 +102,12 @@ class MeddbData:
                 .all()
             )
 
-    def get_persons_by_roles_and_top_committees(self, role_ids: list[int], top_committee_ids: list[int], in_system: bool | None = None) -> list[Person]:
+    def get_persons_by_roles_and_top_committees(self, role_ids: list[int], top_committee_ids: list[int], union_ids: list[int] | None = None, in_system: bool | None = None) -> list[Person]:
         with self.db_client.get_session() as session:
             q = (
                 session.query(Person)
                 .options(
+                    joinedload(Person.union),
                     joinedload(Person.committee_memberships).joinedload(CommitteeMembership.role),
                     joinedload(Person.committee_memberships).joinedload(CommitteeMembership.committee),
                 )
@@ -115,6 +116,14 @@ class MeddbData:
 
             if in_system is not None:
                 q = q.filter(Person.found_in_system == in_system)
+
+            if union_ids:
+                if None in union_ids:
+                    q = q.filter(
+                        (Person.union_id.in_([uid for uid in union_ids if uid is not None])) | (Person.union_id.is_(None))
+                    )
+                else:
+                    q = q.filter(Person.union_id.in_(union_ids))
 
             if role_ids:
                 q = q.filter(CommitteeMembership.role_id.in_(role_ids))
