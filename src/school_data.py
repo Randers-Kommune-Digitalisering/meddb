@@ -2,9 +2,6 @@ import logging
 
 from sqlalchemy import text
 
-from utils.config import SKOLE_AD_DB_HOST, SKOLE_AD_DB_USER, SKOLE_AD_DB_PASS, SKOLE_AD_DB_NAME, SKOLE_AD_DB_SCHEMA, SKOLE_AD_DB_PORT
-from utils.database import DatabaseClient
-
 
 logger = logging.getLogger(__name__)
 

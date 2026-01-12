@@ -3,8 +3,6 @@ import logging
 from sqlalchemy import select, text
 from sqlalchemy.orm import joinedload, aliased
 
-from utils.config import DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_SCHEMA, DB_PORT
-from utils.database import DatabaseClient
 from models import Base, Committee, CommitteeType, CommitteeMembership, Person, Role, Union
 
 
