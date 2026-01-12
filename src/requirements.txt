@@ -1,0 +1,15 @@
+Flask==3.0.3
+openpyxl
+pandas
+pymssql
+py-healthcheck
+psycopg2
+prometheus-client
+python-dotenv
+requests==2.31.0
+requests-pkcs12==1.24
+SQLAlchemy
+streamlit
+streamlit-tree-select
+streamlit-antd-components
+streamlit-keycloak-zpl
