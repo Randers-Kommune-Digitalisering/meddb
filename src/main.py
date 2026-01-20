@@ -297,7 +297,8 @@ elif st.session_state.checked_nodes:
                 use_container_width=False
             )
 
-        def generate_members_excel(memberships, sheet_name):
+        def _generate_members_excel(memberships, sheet_name):
+            """Helper function. Generate an Excel file of committee members."""
             df = pd.DataFrame([
                 {
                     "Navn": m.person.name,
@@ -315,9 +316,9 @@ elif st.session_state.checked_nodes:
 
         st.download_button(
             label="Download som Excel-fil",
-            data=generate_members_excel(
-                memberships,
-                selected_node.get('label', 'Ukendt')
+            data=_generate_members_excel(
+                memberships=memberships,
+                sheet_name=selected_node.get('label', 'Ukendt')
             ),
             file_name=f"{selected_node.get('label', 'Ukendt')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
