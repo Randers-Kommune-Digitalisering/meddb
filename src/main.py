@@ -296,29 +296,29 @@ elif st.session_state.checked_nodes:
                 url=mailto_link,
                 use_container_width=False
             )
+
+        def generate_members_excel(memberships, sheet_name):
+            df = pd.DataFrame([
+                {
+                    "Navn": m.person.name,
+                    "Email": m.person.email,
+                    "Rolle": m.role.name,
+                    "Org. Enhed": m.person.organization,
+                    "I systemet": "Ja" if m.person.found_in_system else "Nej"
+                }
+                for m in memberships
+            ])
+            buffer = BytesIO()
+            df.to_excel(buffer, index=False, sheet_name=sheet_name)
+            buffer.seek(0)
+            return buffer.getvalue()
+
         st.download_button(
             label="Download som Excel-fil",
-            data=(
-                lambda: (
-                    (lambda df: (
-                        (lambda buffer: (
-                            df.to_excel(buffer, index=False, sheet_name=selected_node.get('label', 'Ukendt')),
-                            buffer.seek(0),
-                            buffer.getvalue()
-                        )[2]
-                        )(BytesIO())
-                    ))(pd.DataFrame([
-                        {
-                            "Navn": m.person.name,
-                            "Email": m.person.email,
-                            "Rolle": m.role.name,
-                            "Org. Enhed": m.person.organization,
-                            "I systemet": "Ja" if m.person.found_in_system else "Nej"
-                        }
-                        for m in memberships
-                    ]))
-                )
-            )(),
+            data=generate_members_excel(
+                memberships,
+                selected_node.get('label', 'Ukendt')
+            ),
             file_name=f"{selected_node.get('label', 'Ukendt')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
