@@ -28,7 +28,7 @@ class APIClient:
         :type base_url: str
         :param api_key: API key for authentication. (optional) - used for simple API key auth
         :type api_key: str | None
-        :param auth_url: URL for the authentication endpoint. (optional) - used if diffrent from base_url
+        :param auth_url: URL for the authentication endpoint. (optional) - used if different from base_url
         :type auth_url: str | None
         :param realm: Authentication realm. (optional)
         :type realm: str | None
