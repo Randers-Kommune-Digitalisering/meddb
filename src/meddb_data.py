@@ -301,7 +301,7 @@ class MeddbData:
     # PUT/UPDATE operations
     def update_committee(self, id: int, name: str | None = None, type_id: int | None = None,
                          parent_id: int | None = False) -> Committee:
-        """Update a committee's name, type ID, or paren"""
+        """Update a committee's name, type ID, or parent ID."""
         with self.db_client.get_session() as session:
             committee = session.get(Committee, id)
             if not committee:
