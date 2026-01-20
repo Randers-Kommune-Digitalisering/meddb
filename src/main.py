@@ -287,21 +287,49 @@ elif st.session_state.checked_nodes:
                                 hide_selectbox=True
                             )
         # Show current members
-        memberships = meddb.get_committee_members(selected_node['value'])
+        memberships = meddb.get_committee_members(committee_id=selected_node['value'])
         emails = [m.person.email for m in memberships if m.person.email]
         if emails:
             mailto_link = f"mailto:{';'.join(emails)}"
-            st.markdown(
-                f'<a href="{mailto_link}" target="_blank"><button type="button">Send e-mail til alle i udvalg</button></a>',
-                unsafe_allow_html=True
+            st.link_button(
+                label="Send e-mail til alle i udvalg",
+                url=mailto_link,
+                use_container_width=False
             )
+        st.download_button(
+            label="Download som Excel-fil",
+            data=(
+                lambda: (
+                    (lambda df: (
+                        (lambda buffer: (
+                            df.to_excel(buffer, index=False, sheet_name=selected_node.get('label', 'Ukendt')),
+                            buffer.seek(0),
+                            buffer.getvalue()
+                        )[2]
+                        )(BytesIO())
+                    ))(pd.DataFrame([
+                        {
+                            "Navn": m.person.name,
+                            "Email": m.person.email,
+                            "Rolle": m.role.name,
+                            "Org. Enhed": m.person.organization,
+                            "I systemet": "Ja" if m.person.found_in_system else "Nej"
+                        }
+                        for m in memberships
+                    ]))
+                )
+            )(),
+            file_name=f"{selected_node.get('label', 'Ukendt')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
-        def get_priority(role):
+        def _get_priority(role):
+            """Helper function to get priority index for a role based on PRIORITY_MEMBERS list."""
             return PRIORITY_MEMBERS.index(role) if role in PRIORITY_MEMBERS else len(PRIORITY_MEMBERS)
 
         sorted_rows = sorted(
             memberships,
-            key=lambda x: (get_priority(x.role.name), x.role.name, x.person.name)
+            key=lambda x: (_get_priority(role=x.role.name), x.role.name, x.person.name)
         )
 
         cols = st.columns([2, 2, 2, 1]) if user_roles and st.session_state.get("editing", False) else st.columns([2, 2, 2])
@@ -337,15 +365,16 @@ else:
     search_query = st.text_input("Søg efter udvalg...", key="udvalg_search")
 
     if search_query:
-        def flatten_nodes(committee_tree):
+        def _flatten_nodes(committee_tree):
+            """Helper function to flatten the committee tree into a list."""
             flat = []
             for node in committee_tree:
                 flat.append(node)
                 if node.get("children"):
-                    flat.extend(flatten_nodes(node["children"]))
+                    flat.extend(_flatten_nodes(node["children"]))
             return flat
 
-        flat_nodes = flatten_nodes(committee_tree)
+        flat_nodes = _flatten_nodes(committee_tree=committee_tree)
         filtered = [n for n in flat_nodes if search_query.lower() in n["label"].lower()]
 
         if filtered:
@@ -375,7 +404,7 @@ else:
         role_options = [(role.id, role.name) for role in meddb.get_all_roles()]
         role_values = [opt[0] for opt in role_options]
 
-        sector_options = [(committee.id, committee.name) for committee in meddb.get_committees_by_parent_id(1)]  # Assuming parent_id=1 corresponds to "HOVEDUDVALG" and that all sectors are its children
+        sector_options = [(committee.id, committee.name) for committee in meddb.get_committees_by_parent_id(parent_id=1)]  # Assuming parent_id=1 corresponds to "HOVEDUDVALG" and that all sectors are its children
         sector_values = [opt[0] for opt in sector_options]
 
         union_options = [(union.id, union.name) for union in meddb.get_all_unions()]

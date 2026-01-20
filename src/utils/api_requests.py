@@ -6,7 +6,51 @@ logger = logging.getLogger(__name__)
 
 
 class APIClient:
-    def __init__(self, base_url, api_key=None, auth_url=None, realm=None, tenant_id=None, scope=None, client_id=None, client_secret=None, username=None, password=None, cert_base64=None, use_bearer=None, add_auth_to_path=True):
+    def __init__(
+            self,
+            base_url: str,
+            api_key: str | None = None,
+            auth_url: str | None = None,
+            realm: str | None = None,
+            tenant_id: str | None = None,
+            scope: str | None = None,
+            client_id: str | None = None,
+            client_secret: str | None = None,
+            username: str | None = None,
+            password: str | None = None,
+            cert_base64: str | None = None,
+            use_bearer: bool | None = None,
+            add_auth_to_path: bool = True):
+        """
+        Initialize the APIClient with authentication parameters.
+
+        :param base_url: URL of the API base endpoint. (required)
+        :type base_url: str
+        :param api_key: API key for authentication. (optional) - used for simple API key auth
+        :type api_key: str | None
+        :param auth_url: URL for the authentication endpoint. (optional) - used if diffrent from base_url
+        :type auth_url: str | None
+        :param realm: Authentication realm. (optional)
+        :type realm: str | None
+        :param tenant_id: Tenant identifier for authentication. (optional)
+        :type tenant_id: str | None
+        :param scope: Authentication scope. (optional)
+        :type scope: str | None
+        :param client_id: Client identifier for authentication. (optional) - used with client_secret for tokens
+        :type client_id: str | None
+        :param client_secret: Client secret for authentication. (optional) - used with client_id for tokens
+        :type client_secret: str | None
+        :param username: Username for authentication. (optional) - only used with password. Used for basic auth or resource owner password credentials grant.
+        :type username: str | None
+        :param password: Password for authentication. (optional) - only used with username. Used for basic auth or resource owner password credentials grant.
+        :type password: str | None
+        :param cert_base64: Base64-encoded certificate data. (optional) - not used with other auth methods
+        :type cert_base64: str | None
+        :param use_bearer: Whether to use Bearer token authentication with the API key. (optional) - only used if api_key is provided
+        :type use_bearer: bool | None
+        :param add_auth_to_path: Whether to add 'auth' to the authentication URL path. Default is True.
+        :type add_auth_to_path: bool
+        """
         self.base_url = base_url
         self.api_key = api_key
         self.auth_url = auth_url
@@ -31,6 +75,7 @@ class APIClient:
             self.cert_data = base64.b64decode(cert_base64)
 
     def _authenticate(self):
+        """Authenticate and return headers with the appropriate Authorization."""
         try:
             import requests
             if self.api_key:
@@ -112,6 +157,7 @@ class APIClient:
             return {}
 
     def make_request(self, **kwargs):
+        """Make an API request with authentication and return the response."""
         if 'path' in kwargs:
             if not isinstance(kwargs['path'], str) and kwargs['path'] is not None:
                 raise ValueError('Path must be a string')
