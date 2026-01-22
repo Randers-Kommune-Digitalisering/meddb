@@ -1,19 +1,49 @@
 import pandas as pd
-from io import BytesIO
 import streamlit as st
 import streamlit_antd_components as sac
+from io import BytesIO
 from streamlit_keycloak import login
 from streamlit_tree_select import tree_select
 
 from delta import DeltaClient
-from utils.config import KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID, XFLOW_URL, PRIORITY_MEMBERS
 from meddb_data import MeddbData
 from school_data import SchoolData
 from forms import create_form, edit_name_form, delete_form, change_committee_type_form, move_committee_form, create_committee_form, create_union_form, edit_union_form
+from utils.database import DatabaseClient
+from utils.config import KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID, XFLOW_URL, PRIORITY_MEMBERS, DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT, DB_SCHEMA, SKOLE_AD_DB_SCHEMA
 
-delta_client = DeltaClient()
-meddb = MeddbData()
-schooldb = SchoolData()
+
+@st.cache_resource
+def get_delta_client():
+    return DeltaClient()
+
+
+@st.cache_resource
+def get_db_client():
+    return DatabaseClient(
+        db_type="postgresql",
+        database=DB_NAME,
+        username=DB_USER,
+        password=DB_PASS,
+        host=DB_HOST,
+        port=DB_PORT
+    )
+
+
+@st.cache_resource
+def get_meddb(_db_client):
+    return MeddbData(db_client=_db_client, schema=DB_SCHEMA)
+
+
+@st.cache_resource
+def get_schooldb(_db_client):
+    return SchoolData(db_client=_db_client, schema=SKOLE_AD_DB_SCHEMA)
+
+
+delta_client = get_delta_client()
+db_client = get_db_client()
+meddb = get_meddb(db_client)
+schooldb = get_schooldb(db_client)
 
 
 st.set_page_config(page_title="MED-Database", page_icon="🗄️", layout="wide", initial_sidebar_state="expanded")

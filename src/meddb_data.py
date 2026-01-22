@@ -3,8 +3,6 @@ import logging
 from sqlalchemy import select, text
 from sqlalchemy.orm import joinedload, aliased
 
-from utils.config import DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_SCHEMA, DB_PORT
-from utils.database import DatabaseClient
 from models import Base, Committee, CommitteeType, CommitteeMembership, Person, Role, Union
 
 
@@ -15,23 +13,18 @@ class MeddbData:
     """
     Class for managing MedDB data operations using SQLAlchemy ORM and DatabaseClient.
     """
-    def __init__(self):
+    def __init__(self, db_client, schema):
         """
         Initialize the MeddbData class by setting up the database client and creating necessary schemas and tables, as well as seeding initial data.
         """
-        self.db_client = DatabaseClient(
-            db_type="postgresql",
-            database=DB_NAME,
-            username=DB_USER,
-            password=DB_PASS,
-            host=DB_HOST,
-            port=DB_PORT
-        )
+        self.db_client = db_client
+        self.schema = schema
 
-        with self.db_client.get_connection() as conn:
-            conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {DB_SCHEMA}"))
-            conn.commit()
+        with self.db_client.get_session() as session:
+            session.execute(text(f"CREATE SCHEMA IF NOT EXISTS {self.schema}"))
+            session.commit()
 
+        # Ensure tables are created in the correct schema
         Base.metadata.create_all(self.db_client.get_engine())
 
         self._seed_db()

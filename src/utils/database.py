@@ -1,7 +1,7 @@
 import logging
 import urllib.parse
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy import create_engine
 
 
 class DatabaseClient:
@@ -47,7 +47,8 @@ class DatabaseClient:
         if database:
             connection_string += f'/{urllib.parse.quote_plus(database)}'
 
-        self.engine = create_engine(connection_string)
+        self.engine = create_engine(connection_string, pool_pre_ping=True)
+        self.SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=self.engine))
 
     def get_engine(self):
         """Get the SQLAlchemy engine."""
@@ -65,20 +66,13 @@ class DatabaseClient:
     def get_session(self):
         """Get a SQLAlchemy session."""
         try:
-            if self.engine:
-                return Session(self.get_engine())
-            self.logger.error("DatabaseClient not initialized properly. Engine is None. Check error from init.")
+            return self.SessionLocal()
         except Exception as e:
-            self.logger.error(f"Error connecting to database: {e}")
+            self.logger.error(f"Error creating session: {e}")
 
     def execute_sql(self, sql, params=None):
         """Execute a raw SQL query."""
         try:
-            with self.get_connection() as conn:
-                res = conn.execute(text(sql), params)
-                if res.returns_rows:
-                    return res.fetchall()
-                else:
-                    conn.commit()
+            self.SessionLocal.remove()
         except Exception as e:
-            self.logger.error(f"Error executing SQL: {e}")
+            self.logger.error(f"Error removing session: {e}")
