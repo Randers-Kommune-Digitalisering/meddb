@@ -82,7 +82,7 @@ class CommitteeMembership (Base):
         PrimaryKeyConstraint("person_id", "role_id", "committee_id"),
         {"schema": DB_SCHEMA}
     )
-    # id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
     person_id: Mapped[int] = mapped_column(ForeignKey(f"{DB_SCHEMA}.person.id"))
     role_id: Mapped[int] = mapped_column(ForeignKey(f"{DB_SCHEMA}.role.id"))
     committee_id: Mapped[int] = mapped_column(ForeignKey(f"{DB_SCHEMA}.committee.id"))

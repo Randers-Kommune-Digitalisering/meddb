@@ -6,6 +6,22 @@ from sqlalchemy import create_engine
 
 class DatabaseClient:
     def __init__(self, db_type: str, username: str, password: str, host: str, port: int | None = None, database: str | None = None):
+        """
+        Initialize the DatabaseClient with connection parameters.
+
+        :param db_type: Type of the database (e.g., 'mssql', 'mariadb', 'postgresql').
+        :type db_type: str
+        :param username: Username for the database connection.
+        :type username: str
+        :param password: Password for the database connection.
+        :type password: str
+        :param host: Hostname or IP address of the database server.
+        :type host: str
+        :param port: Port number of the database server. (optional)
+        :type port: int | None
+        :param database: Name of the database to connect to. (optional)
+        :type database: str | None
+        """
         self.db_type = db_type.lower()
         self.database = database
         self.username = username
@@ -35,23 +51,27 @@ class DatabaseClient:
         self.SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=self.engine))
 
     def get_engine(self):
+        """Get the SQLAlchemy engine."""
         return self.engine
 
+    def get_connection(self):
+        """Get a connection from the SQLAlchemy engine."""
+        try:
+            if self.engine:
+                return self.engine.connect()
+            self.logger.error("DatabaseClient not initialized properly. Engine is None. Check error from init.")
+        except Exception as e:
+            self.logger.error(f"Error connecting to database: {e}")
+
     def get_session(self):
-        """
-        Returns a new SQLAlchemy session. For Streamlit, use as context manager:
-        with db_client.get_session() as session:
-            ...
-        """
+        """Get a SQLAlchemy session."""
         try:
             return self.SessionLocal()
         except Exception as e:
             self.logger.error(f"Error creating session: {e}")
 
-    def remove_session(self):
-        """
-        Removes the current session (call at end of request if needed).
-        """
+    def execute_sql(self, sql, params=None):
+        """Execute a raw SQL query."""
         try:
             self.SessionLocal.remove()
         except Exception as e:

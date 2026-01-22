@@ -13,3 +13,4 @@ streamlit
 streamlit-tree-select
 streamlit-antd-components
 streamlit-keycloak-zpl
+xlsxwriter==3.2.9
