@@ -59,6 +59,7 @@ class MeddbData:
 
     # GET operations
     def get_all_committee_types(self, include_protected: bool = False) -> list[CommitteeType]:
+        """Retrieve all committee types, optionally including protected ones."""
         with self.db_client.get_session() as session:
             query = session.query(CommitteeType)
             if not include_protected:
@@ -66,18 +67,22 @@ class MeddbData:
             return query.all()
 
     def get_all_roles(self) -> list[Role]:
+        """Retrieve all roles."""
         with self.db_client.get_session() as session:
             return session.query(Role).all()
 
     def get_all_unions(self) -> list[Union]:
+        """Retrieve all unions."""
         with self.db_client.get_session() as session:
             return session.query(Union).all()
 
     def get_union_by_id(self, union_id: int) -> Union | None:
+        """Retrieve a union by its ID."""
         with self.db_client.get_session() as session:
             return session.get(Union, union_id)
 
     def get_persons_not_in_system(self) -> list[Person]:
+        """Retrieve all persons not marked as found in system."""
         with self.db_client.get_session() as session:
             persons = (
                 session.query(Person)
@@ -91,6 +96,7 @@ class MeddbData:
             return persons
 
     def get_persons_by_roles(self, ids: list[int]) -> list[Person]:
+        """Retrieve persons by their role IDs."""
         with self.db_client.get_session() as session:
             return (
                 session.query(Person)
@@ -103,6 +109,7 @@ class MeddbData:
             )
 
     def get_persons_by_roles_and_top_committees(self, role_ids: list[int], top_committee_ids: list[int], union_ids: list[int] | None = None, in_system: bool | None = None) -> list[Person]:
+        """Retrieve persons by their role IDs and top committee IDs, with optional filters for union IDs and system status."""
         with self.db_client.get_session() as session:
             q = (
                 session.query(Person)
@@ -149,14 +156,17 @@ class MeddbData:
             return q.all()
 
     def get_committees(self) -> list[Committee]:
+        """Retrieve all committees with their types."""
         with self.db_client.get_session() as session:
             return session.query(Committee).options(joinedload(Committee.type)).all()
 
     def get_committee_by_id(self, committee_id: int) -> Committee | None:
+        """Retrieve a committee by its ID with its type."""
         with self.db_client.get_session() as session:
             return session.query(Committee).options(joinedload(Committee.type)).filter(Committee.id == committee_id).first()
 
     def get_committees_by_parent_id(self, parent_id: int) -> list[Committee]:
+        """Retrieve committees by their parent committee ID with their types."""
         with self.db_client.get_session() as session:
             return session.query(Committee).options(joinedload(Committee.type)).filter(Committee.parent_id == parent_id).all()
 
@@ -196,6 +206,7 @@ class MeddbData:
         return sort_nodes(roots), parent_map, node_map
 
     def get_committee_members(self, committee_id: int) -> list[CommitteeMembership]:
+        """Retrieve committee members by committee ID with their associated persons and roles."""
         with self.db_client.get_session() as session:
             memberships = (
                 session.query(CommitteeMembership)
@@ -210,6 +221,7 @@ class MeddbData:
 
     # POST/PUT operations
     def create_role(self, name: str) -> Role:
+        """Create a new role with the given name."""
         with self.db_client.get_session() as session:
             role = Role(name=name)
             session.add(role)
@@ -218,6 +230,7 @@ class MeddbData:
             return role
 
     def create_committee_type(self, name: str) -> CommitteeType:
+        """Create a new committee type with the given name."""
         with self.db_client.get_session() as session:
             committee_type = CommitteeType(name=name)
             session.add(committee_type)
@@ -226,6 +239,7 @@ class MeddbData:
             return committee_type
 
     def create_union(self, name: str, description: str | None) -> Union:
+        """Create a new union with the given name and description."""
         with self.db_client.get_session() as session:
             union = Union(name=name, description=description)
             session.add(union)
@@ -234,6 +248,7 @@ class MeddbData:
             return union
 
     def create_committee(self, name: str, type_id: int, parent_id: int | None) -> Committee:
+        """Create a new committee with the given name, type ID, and optional parent ID."""
         with self.db_client.get_session() as session:
             committee = Committee(name=name, type_id=type_id, parent_id=parent_id)
             session.add(committee)
@@ -242,6 +257,7 @@ class MeddbData:
             return committee
 
     def create_committee_member(self, committee_id: int, person_id: int, role_id: int) -> CommitteeMembership:
+        """Create a new committee membership."""
         with self.db_client.get_session() as session:
             membership = CommitteeMembership(
                 committee_id=committee_id,
@@ -256,6 +272,7 @@ class MeddbData:
 
     def add_or_update_person(self, name: str, email: str, found_in_system: bool = True, organization: str | None = None,
                              username: str | None = None, union_id: int | None = None) -> Person:
+        """Add a new person or update an existing one based on email."""
         with self.db_client.get_session() as session:
             person = session.query(Person).filter_by(email=email).first()
             if person:
@@ -284,6 +301,7 @@ class MeddbData:
     # PUT/UPDATE operations
     def update_committee(self, id: int, name: str | None = None, type_id: int | None = None,
                          parent_id: int | None = False) -> Committee:
+        """Update a committee's name, type ID, or parent ID."""
         with self.db_client.get_session() as session:
             committee = session.get(Committee, id)
             if not committee:
@@ -301,6 +319,7 @@ class MeddbData:
             return committee
 
     def update_committee_type(self, id: int, name: str) -> CommitteeType:
+        """Update a committee type's name."""
         with self.db_client.get_session() as session:
             committee_type = session.get(CommitteeType, id)
             if not committee_type:
@@ -312,6 +331,7 @@ class MeddbData:
             return committee_type
 
     def update_role(self, id: int, name: str) -> Role:
+        """Update a role's name."""
         with self.db_client.get_session() as session:
             role = session.get(Role, id)
             if not role:
@@ -322,20 +342,27 @@ class MeddbData:
             session.refresh(role)
             return role
 
-    def update_union(self, id: int, name: str, description: str | None) -> Union:
+    def update_union(self, id: int, name: str | None, description: str | None) -> Union:
+        """Update a union's name and/or description."""
         with self.db_client.get_session() as session:
             union = session.get(Union, id)
             if not union:
                 raise ValueError("Union not found.")
 
-            union.name = name
-            union.description = description
+            if name is None and description is None:
+                raise ValueError("At least one of name or description must be provided.")
+
+            if name:
+                union.name = name
+            if description:
+                union.description = description
             session.commit()
             session.refresh(union)
             return union
 
     # DELETE operations
     def delete_committee_type(self, id: int) -> None:
+        """Delete a committee type."""
         with self.db_client.get_session() as session:
             committee_type = session.get(CommitteeType, id)
             if not committee_type:
@@ -345,6 +372,7 @@ class MeddbData:
             session.commit()
 
     def delete_role(self, id: int) -> None:
+        """Delete a role."""
         with self.db_client.get_session() as session:
             role = session.get(Role, id)
             if not role:
@@ -354,6 +382,7 @@ class MeddbData:
             session.commit()
 
     def delete_union(self, union_id: int) -> None:
+        """Delete a union."""
         with self.db_client.get_session() as session:
             union = session.get(Union, union_id)
             if not union:
