@@ -298,7 +298,7 @@ elif st.session_state.checked_nodes:
             )
 
         def _generate_members_excel(memberships, sheet_name):
-            """Helper function. Generate an Excel file of committee members."""
+            """Helper function. Generate an Excel file of committee members with adjusted column widths."""
             df = pd.DataFrame([
                 {
                     "Navn": m.person.name,
@@ -310,7 +310,13 @@ elif st.session_state.checked_nodes:
                 for m in memberships
             ])
             buffer = BytesIO()
-            df.to_excel(buffer, index=False, sheet_name=sheet_name)
+            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                df.to_excel(writer, index=False, sheet_name=sheet_name)
+                worksheet = writer.sheets[sheet_name]
+                for idx, col in enumerate(df.columns):
+                    # Set width to at least the length of the column name + 2
+                    width = max(df[col].astype(str).map(len).max() if not df.empty else 0, len(col)) + 2
+                    worksheet.set_column(idx, idx, width)
             buffer.seek(0)
             return buffer.getvalue()
 
@@ -482,9 +488,15 @@ else:
                             mapped_persons.append(row)
                         df = pd.DataFrame(mapped_persons)
                         excel_buffer = BytesIO()
-                        df.to_excel(excel_buffer, index=False)
+                        with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+                            df.to_excel(writer, index=False, sheet_name="MED data")
+                            worksheet = writer.sheets["MED data"]
+                            # Set width to at least the length of the column name + 2
+                            for idx, col in enumerate(df.columns):
+                                width = max(df[col].astype(str).map(len).max() if not df.empty else 0, len(col)) + 2
+                                worksheet.set_column(idx, idx, width)
                         excel_buffer.seek(0)
-                        st.session_state['excel_buffer'] = excel_buffer
+                        st.session_state['excel_buffer'] = excel_buffer.getvalue()
                     else:
                         st.session_state.pop('excel_buffer', None)
                         st.info("Ingen fundet")
@@ -493,7 +505,7 @@ else:
             st.download_button(
                 label="Download Excel-fil",
                 data=st.session_state['excel_buffer'],
-                file_name="meddb_data.xlsx",
+                file_name="MED_data.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 type="primary"
             )
