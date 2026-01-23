@@ -317,7 +317,8 @@ elif st.session_state.checked_nodes:
                                 hide_selectbox=True
                             )
         # Show current members
-        memberships = meddb.get_committee_members(committee_id=selected_node['value'])
+        include_unions = 'edit_member' in user_roles
+        memberships = meddb.get_committee_members(committee_id=selected_node['value'], include_union=include_unions)
         emails = [m.person.email for m in memberships if m.person.email]
         if emails:
             mailto_link = f"mailto:{';'.join(emails)}"
@@ -331,11 +332,14 @@ elif st.session_state.checked_nodes:
             """Helper function. Generate an Excel file of committee members with adjusted column widths."""
             df = pd.DataFrame([
                 {
-                    "Navn": m.person.name,
-                    "Email": m.person.email,
-                    "Rolle": m.role.name,
-                    "Org. Enhed": m.person.organization,
-                    "I systemet": "Ja" if m.person.found_in_system else "Nej"
+                    **{
+                        "Navn": m.person.name,
+                        "Email": m.person.email,
+                        "Rolle": m.role.name,
+                        "Org. Enhed": m.person.organization,
+                        "I systemet": "Ja" if m.person.found_in_system else "Nej"
+                    },
+                    **({"Fagforening": m.person.union.name if m.person.union else None} if include_unions else {})
                 }
                 for m in memberships
             ])
@@ -369,15 +373,17 @@ elif st.session_state.checked_nodes:
             key=lambda x: (_get_priority(role=x.role.name), x.role.name, x.person.name)
         )
 
-        cols = st.columns([2, 2, 2, 1]) if user_roles and st.session_state.get("editing", False) else st.columns([2, 2, 2])
+        cols = st.columns([2, 2, 2, 2, 1]) if include_unions and st.session_state.get("editing", False) else st.columns([2, 2, 2, 2]) if include_unions else st.columns([2, 2, 2])
         cols[0].markdown("<span style='font-size:1.2em; font-weight:bold;'>Navn</span>", unsafe_allow_html=True)
         cols[1].markdown("<span style='font-size:1.2em; font-weight:bold;'>Rolle</span>", unsafe_allow_html=True)
         cols[2].markdown("<span style='font-size:1.2em; font-weight:bold;'>Email</span>", unsafe_allow_html=True)
-        if user_roles and st.session_state.get("editing", False):
-            cols[3].write(' ')
+        if include_unions:
+            cols[3].markdown("<span style='font-size:1.2em; font-weight:bold;'>Fagforening</span>", unsafe_allow_html=True)
+        if include_unions and st.session_state.get("editing", False):
+            cols[4].write(' ')
 
         for i, m in enumerate(sorted_rows):
-            cols = st.columns([2, 2, 2, 1]) if user_roles and st.session_state.get("editing", False) else st.columns([2, 2, 2])
+            cols = st.columns([2, 2, 2, 2, 1]) if include_unions and st.session_state.get("editing", False) else st.columns([2, 2, 2, 2]) if include_unions else st.columns([2, 2, 2])
             cols[0].markdown(f"<span>{m.person.name}</span>", unsafe_allow_html=True)
             cols[1].markdown(f"<span>{m.role.name}</span>", unsafe_allow_html=True)
             if not m.person.found_in_system:
@@ -385,9 +391,11 @@ elif st.session_state.checked_nodes:
             else:
                 email_link = f'<span>{m.person.email}</span>'
             cols[2].markdown(email_link, unsafe_allow_html=True)
+            if include_unions:
+                cols[3].markdown(f"<span>{m.person.union.name if m.person.union else 'Ingen'}</span>", unsafe_allow_html=True)
             # Admin - remove member button
             if 'edit_member' in user_roles and st.session_state.get("editing", False):
-                if cols[3].button("Fjern", key=f"slet_{m.person.name}_{m.role.name}_{m.person.email}"):
+                if cols[4].button("Fjern", key=f"slet_{m.person.name}_{m.role.name}_{m.person.email}"):
                     meddb.delete_committee_member(committee_id=m.committee_id, person_id=m.person_id, role_id=m.role_id)
                     st.session_state.show_success = True
                     st.session_state.success_message = f"{m.role.name} {m.person.name} er fjernet fra {selected_node['label']}."
