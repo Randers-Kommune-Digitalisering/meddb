@@ -7,6 +7,7 @@ from streamlit_tree_select import tree_select
 
 from delta import DeltaClient
 from meddb_data import MeddbData
+from models import CommitteeMembership
 from school_data import SchoolData
 from forms import create_form, edit_name_form, delete_form, change_committee_type_form, move_committee_form, create_committee_form, create_union_form, edit_union_form
 from utils.database import DatabaseClient
@@ -328,21 +329,23 @@ elif st.session_state.checked_nodes:
                 use_container_width=False
             )
 
-        def _generate_members_excel(memberships, sheet_name):
+        def _generate_members_excel(memberships: list[CommitteeMembership], sheet_name: str) -> bytes:
             """Helper function. Generate an Excel file of committee members with adjusted column widths."""
-            df = pd.DataFrame([
-                {
-                    **{
-                        "Navn": m.person.name,
-                        "Email": m.person.email,
-                        "Rolle": m.role.name,
-                        "Org. Enhed": m.person.organization,
-                        "I systemet": "Ja" if m.person.found_in_system else "Nej"
-                    },
-                    **({"Fagforening": m.person.union.name if m.person.union else None} if include_unions else {})
+            def _membership_to_row(membership: CommitteeMembership) -> dict:
+                """Helper function to map a CommitteeMembership to a dictionary row."""
+                row = {
+                    "Navn": membership.person.name,
+                    "Email": membership.person.email,
+                    "Rolle": membership.role.name,
+                    "Org. Enhed": membership.person.organization,
+                    "I systemet": "Ja" if membership.person.found_in_system else "Nej"
                 }
-                for m in memberships
-            ])
+                if include_unions:
+                    row["Fagforening"] = membership.person.union.name if membership.person.union else None
+                return row
+
+            df = pd.DataFrame([_membership_to_row(m) for m in memberships])
+
             buffer = BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
                 df.to_excel(writer, index=False, sheet_name=sheet_name)
@@ -373,7 +376,9 @@ elif st.session_state.checked_nodes:
             key=lambda x: (_get_priority(role=x.role.name), x.role.name, x.person.name)
         )
 
-        cols = st.columns([2, 2, 2, 2, 1]) if include_unions and st.session_state.get("editing", False) else st.columns([2, 2, 2, 2]) if include_unions else st.columns([2, 2, 2])
+        cols_list = [2, 2, 2, 2, 1] if include_unions and st.session_state.get("editing", False) else [2, 2, 2, 2] if include_unions else [2, 2, 2]
+
+        cols = st.columns(cols_list)
         cols[0].markdown("<span style='font-size:1.2em; font-weight:bold;'>Navn</span>", unsafe_allow_html=True)
         cols[1].markdown("<span style='font-size:1.2em; font-weight:bold;'>Rolle</span>", unsafe_allow_html=True)
         cols[2].markdown("<span style='font-size:1.2em; font-weight:bold;'>Email</span>", unsafe_allow_html=True)
@@ -383,7 +388,7 @@ elif st.session_state.checked_nodes:
             cols[4].write(' ')
 
         for i, m in enumerate(sorted_rows):
-            cols = st.columns([2, 2, 2, 2, 1]) if include_unions and st.session_state.get("editing", False) else st.columns([2, 2, 2, 2]) if include_unions else st.columns([2, 2, 2])
+            cols = st.columns(cols_list)
             cols[0].markdown(f"<span>{m.person.name}</span>", unsafe_allow_html=True)
             cols[1].markdown(f"<span>{m.role.name}</span>", unsafe_allow_html=True)
             if not m.person.found_in_system:
@@ -392,7 +397,7 @@ elif st.session_state.checked_nodes:
                 email_link = f'<span>{m.person.email}</span>'
             cols[2].markdown(email_link, unsafe_allow_html=True)
             if include_unions:
-                cols[3].markdown(f"<span>{m.person.union.name if m.person.union else 'Ingen'}</span>", unsafe_allow_html=True)
+                cols[3].markdown(f"<span>{m.person.union.name if m.person.union else ''}</span>", unsafe_allow_html=True)
             # Admin - remove member button
             if 'edit_member' in user_roles and st.session_state.get("editing", False):
                 if cols[4].button("Fjern", key=f"slet_{m.person.name}_{m.role.name}_{m.person.email}"):
