@@ -348,6 +348,8 @@ elif st.session_state.checked_nodes:
 
             buffer = BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                # Excel sheet names must be <= 31 chars
+                sheet_name = sheet_name[:30] if len(sheet_name) > 30 else sheet_name
                 df.to_excel(writer, index=False, sheet_name=sheet_name)
                 worksheet = writer.sheets[sheet_name]
                 for idx, col in enumerate(df.columns):
