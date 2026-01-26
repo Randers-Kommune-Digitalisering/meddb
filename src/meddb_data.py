@@ -198,18 +198,22 @@ class MeddbData:
 
         return sort_nodes(roots), parent_map, node_map
 
-    def get_committee_members(self, committee_id: int) -> list[CommitteeMembership]:
-        """Retrieve committee members by committee ID with their associated persons and roles."""
+    def get_committee_members(self, committee_id: int, include_union: bool) -> list[CommitteeMembership]:
+        """Retrieve committee members by committee ID with their associated persons and roles. If include_union is True, also load union names."""
         with self.db_client.get_session() as session:
-            memberships = (
+            query = (
                 session.query(CommitteeMembership)
                 .options(
                     joinedload(CommitteeMembership.person),
                     joinedload(CommitteeMembership.role)
                 )
                 .filter(CommitteeMembership.committee_id == committee_id)
-                .all()
             )
+            if include_union:
+                query = query.options(
+                    joinedload(CommitteeMembership.person).joinedload(Person.union)
+                )
+            memberships = query.all()
             return memberships
 
     # POST/PUT operations
