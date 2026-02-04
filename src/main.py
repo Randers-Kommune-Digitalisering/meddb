@@ -329,6 +329,14 @@ elif st.session_state.checked_nodes:
                 use_container_width=False
             )
 
+        def _clean_string(name: str) -> str:
+            """Helper function to clean a string for use as a filename and excel sheet name."""
+            name[:30] if len(name) > 30 else name
+            invalid_chars = r'<>:"/\|?*'
+            for ch in invalid_chars:
+                name = name.replace(ch, "_")
+            return name
+
         def _generate_members_excel(memberships: list[CommitteeMembership], sheet_name: str) -> bytes:
             """Helper function. Generate an Excel file of committee members with adjusted column widths."""
             def _membership_to_row(membership: CommitteeMembership) -> dict:
@@ -348,8 +356,6 @@ elif st.session_state.checked_nodes:
 
             buffer = BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                # Excel sheet names must be <= 31 chars
-                sheet_name = sheet_name[:30] if len(sheet_name) > 30 else sheet_name
                 df.to_excel(writer, index=False, sheet_name=sheet_name)
                 worksheet = writer.sheets[sheet_name]
                 for idx, col in enumerate(df.columns):
@@ -359,13 +365,15 @@ elif st.session_state.checked_nodes:
             buffer.seek(0)
             return buffer.getvalue()
 
+        name = _clean_string(selected_node.get('label', 'Ukendt'))
+
         st.download_button(
             label="Download som Excel-fil",
             data=_generate_members_excel(
                 memberships=memberships,
-                sheet_name=selected_node.get('label', 'Ukendt')
+                sheet_name=name
             ),
-            file_name=f"{selected_node.get('label', 'Ukendt')}.xlsx",
+            file_name=f"{name}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
