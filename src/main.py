@@ -330,7 +330,7 @@ elif st.session_state.checked_nodes:
             )
 
         def _clean_string(name: str) -> str:
-            """Helper function to clean a string for use as a filename and excel sheet name."""
+            """Helper function to clean a string for use as a filename and Excel sheet name."""
             name = name[:30] if len(name) > 30 else name
             invalid_chars = r'<>:"/\|?*'
             for ch in invalid_chars:
