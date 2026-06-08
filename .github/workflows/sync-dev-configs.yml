@@ -126,7 +126,6 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           add-paths: |
-            setup.cfg
             .github
           commit-message: "chore: sync dev-configs"
           title: "chore: sync dev-configs"
